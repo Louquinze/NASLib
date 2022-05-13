@@ -21,10 +21,10 @@ logger = logging.getLogger(__name__)
 
 
 class Bananas(MetaOptimizer):
-    
+
     # training the models is not implemented
     using_step_function = False
-    
+
     def __init__(self, config):
         super().__init__()
         self.config = config
@@ -54,9 +54,9 @@ class Bananas(MetaOptimizer):
 
     def adapt_search_space(self, search_space, scope=None, dataset_api=None):
         assert search_space.QUERYABLE, "Bananas is currently only implemented for benchmarks."
-        
+
         self.search_space = search_space.clone()
-        self.scope = scope if scope else search_space.OPTIMIZER_SCOPE      
+        self.scope = scope if scope else search_space.OPTIMIZER_SCOPE
         self.dataset_api = dataset_api
         self.ss_type = self.search_space.get_type()
         if self.zc:
@@ -68,22 +68,22 @@ class Bananas(MetaOptimizer):
         if self.ss_type in ['nasbench101', 'darts']:
             return ZeroCostV2(self.config, batch_size=64, method_type='jacov')
         else:
-            return ZeroCostV1(self.config, batch_size=64, method_type='jacov')    
+            return ZeroCostV1(self.config, batch_size=64, method_type='jacov')
 
     def new_epoch(self, epoch):
 
         if epoch < self.num_init:
-            # randomly sample initial architectures 
+            # randomly sample initial architectures
             model = torch.nn.Module()   # hacky way to get arch and accuracy checkpointable
             model.arch = self.search_space.clone()
             model.arch.sample_random_architecture(dataset_api=self.dataset_api)
             model.accuracy = model.arch.query(self.performance_metric, self.dataset, dataset_api=self.dataset_api)
-            if self.zc and len(self.train_data) <= self.max_zerocost:                
+            if self.zc and len(self.train_data) <= self.max_zerocost:
                 zc_method = self.get_zc_method()
                 zc_method.train_loader = copy.deepcopy(self.train_loader)
                 score = zc_method.query([model.arch])
                 model.zc_score = np.squeeze(score)
-            
+
             self.train_data.append(model)
             self._update_history(model)
 
@@ -94,7 +94,7 @@ class Bananas(MetaOptimizer):
                 ytrain = [m.accuracy for m in self.train_data]
                 ensemble = Ensemble(num_ensemble=self.num_ensemble,
                                     ss_type=self.ss_type,
-                                    predictor_type=self.predictor_type, 
+                                    predictor_type=self.predictor_type,
                                     config=self.config)
 
                 if self.zc and len(self.train_data) <= self.max_zerocost:
@@ -124,10 +124,10 @@ class Bananas(MetaOptimizer):
                 train_error = ensemble.fit(xtrain, ytrain)
 
                 # define an acquisition function
-                acq_fn = acquisition_function(ensemble=ensemble, 
+                acq_fn = acquisition_function(ensemble=ensemble,
                                               ytrain=ytrain,
                                               acq_fn_type=self.acq_fn_type)
-                
+
                 # optimize the acquisition function to output k new architectures
                 candidates = []
                 zc_scores = []
@@ -137,7 +137,7 @@ class Bananas(MetaOptimizer):
                         arch = self.search_space.clone()
                         arch.sample_random_architecture(dataset_api=self.dataset_api)
                         candidates.append(arch)
-                    
+
                 elif self.acq_fn_optimization == 'mutation':
                     # mutate the k best architectures by x
                     best_arch_indices = np.argsort(ytrain)[-self.num_arches_to_mutate:]
@@ -168,10 +168,10 @@ class Bananas(MetaOptimizer):
                 self.next_batch = [*choices]
 
             # train the next architecture chosen by the neural predictor
-            model = torch.nn.Module()   # hacky way to get arch and accuracy checkpointable            
+            model = torch.nn.Module()   # hacky way to get arch and accuracy checkpointable
             model.arch = self.next_batch.pop()
             model.accuracy = model.arch.query(self.performance_metric, self.dataset, dataset_api=self.dataset_api)
-            if self.zc and len(self.train_data) <= self.max_zerocost:                
+            if self.zc and len(self.train_data) <= self.max_zerocost:
                 zc_method = self.get_zc_method()
                 zc_method.train_loader = copy.deepcopy(self.train_loader)
                 score = zc_method.query([model.arch])
@@ -179,7 +179,7 @@ class Bananas(MetaOptimizer):
 
             self._update_history(model)
             self.train_data.append(model)
-        
+
     def _update_history(self, child):
         if len(self.history) < 100:
             self.history.append(child)
@@ -192,10 +192,10 @@ class Bananas(MetaOptimizer):
     def train_statistics(self):
         best_arch = self.get_final_architecture()
         return (
-            best_arch.query(Metric.TRAIN_ACCURACY, self.dataset, dataset_api=self.dataset_api), 
-            best_arch.query(Metric.VAL_ACCURACY, self.dataset, dataset_api=self.dataset_api), 
-            best_arch.query(Metric.TEST_ACCURACY, self.dataset, dataset_api=self.dataset_api), 
-            best_arch.query(Metric.TRAIN_TIME, self.dataset, dataset_api=self.dataset_api), 
+            best_arch.query(Metric.TRAIN_ACCURACY, self.dataset, dataset_api=self.dataset_api),
+            best_arch.query(Metric.VAL_ACCURACY, self.dataset, dataset_api=self.dataset_api),
+            best_arch.query(Metric.TEST_ACCURACY, self.dataset, dataset_api=self.dataset_api),
+            best_arch.query(Metric.TRAIN_TIME, self.dataset, dataset_api=self.dataset_api),
         )
 
     def test_statistics(self):
@@ -205,15 +205,15 @@ class Bananas(MetaOptimizer):
 
     def get_final_architecture(self):
         return max(self.history, key=lambda x: x.accuracy).arch
-    
-    
+
+
     def get_op_optimizer(self):
         raise NotImplementedError()
 
-    
+
     def get_checkpointables(self):
         return {'model': self.history}
-    
+
 
     def get_model_size(self):
         return count_parameters_in_MB(self.history)
