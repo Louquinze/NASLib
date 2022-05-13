@@ -40,9 +40,8 @@ class RegularizedEvolution(MetaOptimizer):
         self.dataset_api = dataset_api
 
     def new_epoch(self, epoch):
-        raise NotImplementedError
         # We sample as many architectures as we need
-        """if epoch < self.population_size:
+        if epoch < self.population_size:
             logger.info("Start sampling architectures to fill the population")
             # If there is no scope defined, let's use the search space default one
 
@@ -72,7 +71,7 @@ class RegularizedEvolution(MetaOptimizer):
                                               dataset_api=self.dataset_api)
 
             self.population.append(child)
-            self._update_history(child)"""
+            self._update_history(child)
 
     def _update_history(self, child):
         if len(self.history) < 100:

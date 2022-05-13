@@ -11,7 +11,7 @@ search:
   cutout_prob: 1.0
   data_size: 25000
   encoding_type: adjacency_one_hot
-  epochs: 300
+  epochs: 100
   fidelity: 200
   k: 20
   max_mutations: 1
