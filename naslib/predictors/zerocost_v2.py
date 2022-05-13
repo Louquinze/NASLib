@@ -1,6 +1,6 @@
 """
 This contains implementations of:
-synflow, grad_norm, fisher, and grasp, and variants of jacov and snip 
+synflow, grad_norm, fisher, and grasp, and variants of jacov and snip
 based on https://github.com/mohsaied/zero-cost-nas
 Note that zerocost_v1.py contains the original implementations
 of jacov and snip. Particularly, the original jacov implementation tends to
@@ -46,7 +46,7 @@ class ZeroCostV2(Predictor):
         self.train_loader, _, _, _, _ = get_train_val_loaders(self.config, mode='train')
 
     def query(self, xtest, info=None):
-
+        print(xtest)
         test_set_scores = []
         count = 0
         for test_arch in xtest:
@@ -86,7 +86,7 @@ class ZeroCostV2(Predictor):
                                              self.device, measure_names=[self.method_type])
             if math.isnan(score):
                 score = -1e8
-                
+
             if 'nasbench101' in self.config.search_space and self.method_type == 'jacov':
                 score = -score
             elif 'darts' in self.config.search_space and self.method_type in ['fisher', 'grad_norm', 'synflow', 'snip']:
