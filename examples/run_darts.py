@@ -1,6 +1,6 @@
 import logging
 from naslib.defaults.trainer import Trainer
-from naslib.optimizers import DARTSOptimizer, GDASOptimizer, RandomSearch
+from naslib.optimizers import DARTSOptimizer, GDASOptimizer, RandomSearch, DARTSTopKOptimizer
 from naslib.search_spaces import DartsSearchSpace, SimpleCellSearchSpace
 
 from naslib.utils import set_seed, setup_logger, get_config_from_args
@@ -13,7 +13,7 @@ logger.setLevel(logging.INFO)  # default DEBUG is very verbose
 
 search_space = DartsSearchSpace()  # use SimpleCellSearchSpace() for less heavy search
 
-optimizer = DARTSOptimizer(config)
+optimizer = DARTSTopKOptimizer(config)
 optimizer.adapt_search_space(search_space)
 
 trainer = Trainer(optimizer, config)

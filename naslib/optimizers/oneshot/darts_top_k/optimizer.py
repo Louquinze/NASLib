@@ -53,11 +53,11 @@ class DARTSTopKMixedOp(DARTSMixedOp):
 
     def __init__(self, primitives, top_k=1):
         super().__init__(primitives)
-        self.top_k = top_k
+        self.top_k = min(top_k, len(primitives))
 
     def process_weights(self, weights):
         mask = torch.zeros_like(weights)
-        mask[torch.min(torch.topk(weights, self.top_k)) <= weights] = 1
+        mask[torch.min(torch.topk(weights, self.top_k).values) <= weights] = 1
         return torch.softmax(weights * mask, dim=-1)
 
     def apply_weights(self, x, weights):
