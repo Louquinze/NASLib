@@ -19,15 +19,14 @@ class DARTSTopKOptimizer(DARTSOptimizer):
     Implementation of the DARTS paper as in
         Liu et al. 2019: DARTS: Differentiable Architecture Search.
     """
-
     @staticmethod
-    def update_ops(edge):
+    def update_ops(edge, top_k=None):
         """
         Function to replace the primitive ops at the edges
         with the DARTS specific MixedOp.
         """
         primitives = edge.data.op
-        edge.data.set("op", DARTSTopKMixedOp(primitives))
+        edge.data.set("op", DARTSTopKMixedOp(primitives, top_k=top_k))
 
     def __init__(
         self,
@@ -51,8 +50,9 @@ class DARTSTopKMixedOp(DARTSMixedOp):
     Continous relaxation of the discrete search space.
     """
 
-    def __init__(self, primitives, top_k=1):
+    def __init__(self, primitives, top_k):
         super().__init__(primitives)
+        assert top_k != None
         self.top_k = min(top_k, len(primitives))
 
     def process_weights(self, weights):

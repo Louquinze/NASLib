@@ -718,7 +718,10 @@ class Graph(torch.nn.Module, nx.DiGraph):
                 for u, v, edge_data in graph.edges.data():
                     if not edge_data.is_final():
                         edge = AttrDict(head=u, tail=v, data=edge_data)
-                        update_func(edge=edge)
+                        if "DARTSTopKOptimizer.update_ops" == update_func.__qualname__:
+                            update_func(edge=edge, top_k=self.top_k)
+                        else:
+                            update_func(edge=edge)
         self._delete_flagged_edges()
 
     def update_nodes(

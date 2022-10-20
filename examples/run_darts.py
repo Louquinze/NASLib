@@ -12,8 +12,10 @@ logger = setup_logger(config.save + "/log.log")
 logger.setLevel(logging.INFO)  # default DEBUG is very verbose
 
 search_space = DartsSearchSpace()  # use SimpleCellSearchSpace() for less heavy search
+search_space.top_k = 2  # Todo hacky fix this in the search space def
 
 optimizer = DARTSTopKOptimizer(config)
+# optimizer = DARTSOptimizer(config)
 optimizer.adapt_search_space(search_space)
 
 trainer = Trainer(optimizer, config)
