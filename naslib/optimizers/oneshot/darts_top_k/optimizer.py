@@ -61,5 +61,4 @@ class DARTSTopKMixedOp(DARTSMixedOp):
         return torch.softmax(weights * mask, dim=-1)
 
     def apply_weights(self, x, weights):
-        idx = torch.argmax(weights)
-        return weights[idx] * self.primitives[idx](x, None)
+        return sum([weights[idx] * self.primitives[idx](x, None) for idx in torch.topk(weights, self.top_k).indices])
