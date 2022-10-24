@@ -60,7 +60,7 @@ class DARTSTPropMixedOp(DARTSMixedOp):
         rand_values = torch.rand(len(self.primitives)).cuda()
         # logger.info(
         #     f"random choice: {[rand_value < w for rand_value, w in zip(weights, rand_values) if w > rand_value]}")
-        norm = sum([rand_value * w for rand_value, w in zip(weights, rand_values) if w > rand_value])
+        norm = sum([w for rand_value, w in zip(weights, rand_values) if w > rand_value])
         for w, op, rand_value in zip(weights, self.primitives, rand_values):
             if w > rand_value:
                 if res is None:
