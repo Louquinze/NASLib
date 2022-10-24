@@ -10,23 +10,24 @@ from naslib.utils.utils import count_parameters_in_MB
 from naslib.search_spaces.core.query_metrics import Metric
 
 import naslib.search_spaces.core.primitives as ops
+import numpy as np
 
 logger = logging.getLogger(__name__)
 
 
-class DARTSTopKOptimizer(DARTSOptimizer):
+class DARTSPropOptimizer(DARTSOptimizer):
     """
     Implementation of the DARTS paper as in
         Liu et al. 2019: DARTS: Differentiable Architecture Search.
     """
     @staticmethod
-    def update_ops(edge, top_k=None):
+    def update_ops(edge):
         """
         Function to replace the primitive ops at the edges
         with the DARTS specific MixedOp.
         """
         primitives = edge.data.op
-        edge.data.set("op", DARTSTopKMixedOp(primitives, top_k=top_k))
+        edge.data.set("op", DARTSTPropMixedOp(primitives))
 
     def __init__(
         self,
@@ -42,30 +43,21 @@ class DARTSTopKOptimizer(DARTSOptimizer):
         Args:
 
         """
-        super(DARTSTopKOptimizer, self).__init__(config, op_optimizer, arch_optimizer, loss_criteria)
+        super(DARTSPropOptimizer, self).__init__(config, op_optimizer, arch_optimizer, loss_criteria)
 
 
-class DARTSTopKMixedOp(DARTSMixedOp):
+class DARTSTPropMixedOp(DARTSMixedOp):
     """
     Continous relaxation of the discrete search space.
     """
 
-    def __init__(self, primitives, top_k):
+    def __init__(self, primitives):
         super().__init__(primitives)
-        assert top_k != None
-        self.top_k = min(top_k, len(primitives))
-
-    def process_weights(self, weights):
-        topk = torch.topk(weights, self.top_k)
-        min_threshold = torch.min(topk.values)
-        mask = torch.zeros_like(weights)
-        mask[weights >= min_threshold] = 1 / (sum(topk.values) + 1e-05)
-        return weights * mask
 
     def apply_weights(self, x, weights):
         res = None
         for w, op in zip(weights, self.primitives):
-            if w > 0:
+            if w > torch.randn(1).cuda():
                 if res is None:
                     res = w * op(x, None)
                 else:
