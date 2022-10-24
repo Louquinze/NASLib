@@ -56,12 +56,14 @@ class DARTSTPropMixedOp(DARTSMixedOp):
 
     def apply_weights(self, x, weights):
         res = None
-        for w, op in zip(weights, self.primitives):
-            if w > torch.randn(1).cuda():
+        rand_values = torch.rand(len(self.primitives)).cuda()
+        norm = sum([rand_value * w for rand_value, w in zip(weights, rand_values) if w > rand_value])
+        for w, op, rand_value in zip(weights, self.primitives, rand_values):
+            if w > rand_value:
                 if res is None:
-                    res = w * op(x, None)
+                    res = w/norm * op(x, None)
                 else:
-                    res += w * op(x, None)
+                    res += w/norm * op(x, None)
 
         if res is None:
             res = torch.zeros_like(self.primitives[0](x, None))
