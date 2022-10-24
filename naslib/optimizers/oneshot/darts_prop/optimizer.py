@@ -20,6 +20,7 @@ class DARTSPropOptimizer(DARTSOptimizer):
     Implementation of the DARTS paper as in
         Liu et al. 2019: DARTS: Differentiable Architecture Search.
     """
+
     @staticmethod
     def update_ops(edge):
         """
@@ -30,12 +31,12 @@ class DARTSPropOptimizer(DARTSOptimizer):
         edge.data.set("op", DARTSTPropMixedOp(primitives))
 
     def __init__(
-        self,
-        config,
-        op_optimizer=torch.optim.SGD,
-        arch_optimizer=torch.optim.Adam,
-        loss_criteria=torch.nn.CrossEntropyLoss(),
-        top_k=1
+            self,
+            config,
+            op_optimizer=torch.optim.SGD,
+            arch_optimizer=torch.optim.Adam,
+            loss_criteria=torch.nn.CrossEntropyLoss(),
+            top_k=1
     ):
         """
         Initialize a new instance.
@@ -57,13 +58,15 @@ class DARTSTPropMixedOp(DARTSMixedOp):
     def apply_weights(self, x, weights):
         res = None
         rand_values = torch.rand(len(self.primitives)).cuda()
+        logger.info(
+            f"random choice: {[rand_value < w for rand_value, w in zip(weights, rand_values) if w > rand_value]}")
         norm = sum([rand_value * w for rand_value, w in zip(weights, rand_values) if w > rand_value])
         for w, op, rand_value in zip(weights, self.primitives, rand_values):
             if w > rand_value:
                 if res is None:
-                    res = w/norm * op(x, None)
+                    res = w / norm * op(x, None)
                 else:
-                    res += w/norm * op(x, None)
+                    res += w / norm * op(x, None)
 
         if res is None:
             res = torch.zeros_like(self.primitives[0](x, None))
