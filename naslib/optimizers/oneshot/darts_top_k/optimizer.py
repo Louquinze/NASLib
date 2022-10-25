@@ -72,6 +72,7 @@ class DARTSTopKMixedOp(DARTSMixedOp):
                     res += w * op(x, None)
 
         if res is None:
-            res = torch.zeros_like(self.primitives[0](x, None))
+            with torch.autograd.no_grad():
+                res = torch.zeros_like(self.primitives[0](x, None))
 
         return res
