@@ -23,8 +23,8 @@ class DropPathWrapper(AbstractPrimitive):
             keep_prob = 1.0 - edge_data.drop_path_prob
             mask = torch.FloatTensor(x.size(0), 1, 1, 1).bernoulli_(keep_prob)
             mask = mask.to(self.device)
-            x.div_(keep_prob)
-            x.mul_(mask)
+            x = torch.div(x, keep_prob)  # x.div_(keep_prob)
+            x = torch.mul(x, mask)  # x.mul_(mask)
         return x
 
     def get_embedded_ops(self):
