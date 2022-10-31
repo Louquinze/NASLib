@@ -55,24 +55,21 @@ class DARTSTopKMixedOp(DARTSMixedOp):
         assert top_k != None
         self.top_k = min(top_k, len(primitives))
 
-    def process_weights(self, weights):
+    def apply_weights(self, x, weights):
         topk = torch.topk(weights, self.top_k)
         min_threshold = torch.min(topk.values)
         mask = torch.zeros_like(weights)
         mask[weights >= min_threshold] = 1 / (sum(topk.values) + 1e-05)
-        return weights * mask
 
-    def apply_weights(self, x, weights):
         res = None
-        for w, op in zip(weights, self.primitives):
-            if w > 0:
+        for idx, (w, op) in enumerate(zip(weights, self.primitives)):
+            if idx in topk.indices:
                 if res is None:
-                    res = w * op(x, None)
+                    res = mask[idx] * weights[idx] * op(x, None)
                 else:
-                    res += w * op(x, None)
+                    res += mask[idx] * weights[idx] * op(x, None)
 
         if res is None:
             with torch.autograd.no_grad():
                 res = torch.zeros_like(self.primitives[0](x, None))
-
         return res
