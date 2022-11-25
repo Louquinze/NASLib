@@ -8,6 +8,10 @@ import copy
 import torch
 import numpy as np
 
+import matplotlib.pyplot as plt
+import seaborn as sns
+from pathlib import Path
+
 from fvcore.common.checkpoint import PeriodicCheckpointer
 
 from naslib.search_spaces.core.query_metrics import Metric
@@ -106,6 +110,10 @@ class Trainer(object):
                 self.config
             )
 
+        if self.config.save_arch_weights:
+            Path(self.config.save_arch_weights_path).mkdir(parents=True, exist_ok=False)
+
+        x = None
         for e in range(start_epoch, self.epochs):
 
             start_time = time.time()
@@ -113,6 +121,19 @@ class Trainer(object):
 
             if self.optimizer.using_step_function:
                 for step, data_train in enumerate(self.train_queue):
+                    if x is None:
+                        x = torch.unsqueeze(
+                            torch.stack(tuple(i.detach().cpu() for i in self.optimizer.architectural_weights)),
+                            dim=1)
+                        if not Path(f'{self.config.save_arch_weights_path}/tensor.pt').exists():
+                            logger.info(f"Create tensor file: {self.config.save_arch_weights_path}/tensor.pt")
+                            torch.save(x, f'{self.config.save_arch_weights_path}/tensor.pt')
+                    else:
+                        y = torch.unsqueeze(
+                            torch.stack(tuple(i.detach().cpu() for i in self.optimizer.architectural_weights)),
+                            dim=1)
+                        x = torch.cat((x, y), dim=1)
+
                     data_train = (
                         data_train[0].to(self.device),
                         data_train[1].to(self.device, non_blocking=True),
@@ -197,6 +218,29 @@ class Trainer(object):
 
             if after_epoch is not None:
                 after_epoch(e)
+
+            if self.config.save_arch_weights:
+                y = torch.load(f'{self.config.save_arch_weights_path}/tensor.pt')
+                x = torch.cat((y, x), dim=1)
+                logger.info(f"Merge saved tensors and cached tensors: {self.config.save_arch_weights_path}/tensor.pt")
+                torch.save(x, f'{self.config.save_arch_weights_path}/tensor.pt')
+
+        if self.config.save_arch_weights:
+            X = torch.load(f'{self.config.save_arch_weights_path}/tensor.pt')
+            X = X.numpy()
+
+            for idx, x in enumerate(X):
+                g = sns.heatmap(x.T, vmax=np.max(X), vmin=np.min(X))
+
+                g.set_xticklabels(g.get_xticklabels(), rotation=60)
+
+                plt.title(f"arch weights for operation {idx}")
+                plt.xlabel("steps")
+                plt.ylabel("alpha values")
+                plt.savefig(f"{self.config.save_arch_weights_path}/heatmap_{idx}.png")
+                plt.cla()
+                plt.clf()
+                plt.close()
 
         self.optimizer.after_training()
 
