@@ -127,9 +127,11 @@ class Trainer(object):
                             for idx, i in enumerate(self.optimizer.architectural_weights):
                                 x.append(torch.unsqueeze(i.detach(), dim=0))
 
-                            if not Path(f'{self.config.save_arch_weights_path}/tensor_*.pt').exists():
+                            if not Path(
+                                    f'{self.config.save_arch_weights_path}/tensor_0.pt').exists():  # todo sketchy fix
                                 for idx, x_i in enumerate(x):
-                                    logger.info(f"Create tensor file: {self.config.save_arch_weights_path}/tensor_{idx}.pt")
+                                    logger.info(
+                                        f"Create tensor file: {self.config.save_arch_weights_path}/tensor_{idx}.pt")
                                     torch.save(x[idx], f'{self.config.save_arch_weights_path}/tensor_{idx}.pt')
                         else:
                             for idx, i in enumerate(self.optimizer.architectural_weights):
@@ -231,7 +233,7 @@ class Trainer(object):
         if self.config.save_arch_weights:
             vmax = None
             vmin = None
-            
+
             for idx in range(len(self.optimizer.architectural_weights)):
                 x = torch.load(f'{self.config.save_arch_weights_path}/tensor_{idx}.pt')
                 if vmax is None:
@@ -244,7 +246,6 @@ class Trainer(object):
                 elif torch.min(x) < vmin:
                     vmin = torch.min(x)
 
-                
             for idx in range(len(self.optimizer.architectural_weights)):
                 x = torch.load(f'{self.config.save_arch_weights_path}/tensor_{idx}.pt')
                 x = x.detach().cpu().numpy()
