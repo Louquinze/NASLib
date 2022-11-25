@@ -113,8 +113,8 @@ class Trainer(object):
         if self.config.save_arch_weights:
             Path(self.config.save_arch_weights_path).mkdir(parents=True, exist_ok=False)
 
-        x = None
         for e in range(start_epoch, self.epochs):
+            x = None
 
             start_time = time.time()
             self.optimizer.new_epoch(e)
@@ -122,17 +122,17 @@ class Trainer(object):
             if self.optimizer.using_step_function:
                 for step, data_train in enumerate(self.train_queue):
                     if x is None:
-                        x = torch.unsqueeze(
-                            torch.stack(tuple(i.detach().cpu() for i in self.optimizer.architectural_weights)),
-                            dim=1)
-                        if not Path(f'{self.config.save_arch_weights_path}/tensor.pt').exists():
-                            logger.info(f"Create tensor file: {self.config.save_arch_weights_path}/tensor.pt")
-                            torch.save(x, f'{self.config.save_arch_weights_path}/tensor.pt')
+                        x = []
+                        for idx, i in enumerate(self.optimizer.architectural_weights):
+                            x.append(torch.unsqueeze(i.detach(), dim=0))
+
+                        if not Path(f'{self.config.save_arch_weights_path}/tensor_*.pt').exists():
+                            for idx, x_i in enumerate(x):
+                                logger.info(f"Create tensor file: {self.config.save_arch_weights_path}/tensor_{idx}.pt")
+                                torch.save(x[idx], f'{self.config.save_arch_weights_path}/tensor_{idx}.pt')
                     else:
-                        y = torch.unsqueeze(
-                            torch.stack(tuple(i.detach().cpu() for i in self.optimizer.architectural_weights)),
-                            dim=1)
-                        x = torch.cat((x, y), dim=1)
+                        for idx, i in enumerate(self.optimizer.architectural_weights):
+                            x[idx] = torch.cat((x[idx], torch.unsqueeze(i, dim=0)), dim=0)
 
                     data_train = (
                         data_train[0].to(self.device),
@@ -220,17 +220,35 @@ class Trainer(object):
                 after_epoch(e)
 
             if self.config.save_arch_weights:
-                y = torch.load(f'{self.config.save_arch_weights_path}/tensor.pt')
-                x = torch.cat((y, x), dim=1)
-                logger.info(f"Merge saved tensors and cached tensors: {self.config.save_arch_weights_path}/tensor.pt")
-                torch.save(x, f'{self.config.save_arch_weights_path}/tensor.pt')
+                for idx in range(len(self.optimizer.architectural_weights)):
+                    y = torch.load(f'{self.config.save_arch_weights_path}/tensor_{idx}.pt')
+                    x[idx] = torch.cat((y, x[idx]), dim=0)
+                    logger.info(
+                        f"Merge saved tensors and cached tensors: {self.config.save_arch_weights_path}/tensor_{idx}.pt")
+                    torch.save(x[idx], f'{self.config.save_arch_weights_path}/tensor_{idx}.pt')
 
         if self.config.save_arch_weights:
-            X = torch.load(f'{self.config.save_arch_weights_path}/tensor.pt')
-            X = X.numpy()
+            vmax = None
+            vmin = None
+            
+            for idx in range(len(self.optimizer.architectural_weights)):
+                x = torch.load(f'{self.config.save_arch_weights_path}/tensor_{idx}.pt')
+                if vmax is None:
+                    vmax = torch.max(x)
+                elif torch.max(x) > vmax:
+                    vmax = torch.max(x)
 
-            for idx, x in enumerate(X):
-                g = sns.heatmap(x.T, vmax=np.max(X), vmin=np.min(X))
+                if vmin is None:
+                    vmin = torch.min(x)
+                elif torch.min(x) < vmin:
+                    vmin = torch.min(x)
+
+                
+            for idx in range(len(self.optimizer.architectural_weights)):
+                x = torch.load(f'{self.config.save_arch_weights_path}/tensor_{idx}.pt')
+                x = x.detach().cpu().numpy()
+
+                g = sns.heatmap(x.T, vmax=vmax.detach().cpu().numpy(), vmin=vmin.detach().cpu().numpy())
 
                 g.set_xticklabels(g.get_xticklabels(), rotation=60)
 
