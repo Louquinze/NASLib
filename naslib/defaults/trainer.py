@@ -121,18 +121,19 @@ class Trainer(object):
 
             if self.optimizer.using_step_function:
                 for step, data_train in enumerate(self.train_queue):
-                    if x is None:
-                        x = []
-                        for idx, i in enumerate(self.optimizer.architectural_weights):
-                            x.append(torch.unsqueeze(i.detach(), dim=0))
+                    if self.config.save_arch_weights:
+                        if x is None:
+                            x = []
+                            for idx, i in enumerate(self.optimizer.architectural_weights):
+                                x.append(torch.unsqueeze(i.detach(), dim=0))
 
-                        if not Path(f'{self.config.save_arch_weights_path}/tensor_*.pt').exists():
-                            for idx, x_i in enumerate(x):
-                                logger.info(f"Create tensor file: {self.config.save_arch_weights_path}/tensor_{idx}.pt")
-                                torch.save(x[idx], f'{self.config.save_arch_weights_path}/tensor_{idx}.pt')
-                    else:
-                        for idx, i in enumerate(self.optimizer.architectural_weights):
-                            x[idx] = torch.cat((x[idx], torch.unsqueeze(i, dim=0)), dim=0)
+                            if not Path(f'{self.config.save_arch_weights_path}/tensor_*.pt').exists():
+                                for idx, x_i in enumerate(x):
+                                    logger.info(f"Create tensor file: {self.config.save_arch_weights_path}/tensor_{idx}.pt")
+                                    torch.save(x[idx], f'{self.config.save_arch_weights_path}/tensor_{idx}.pt')
+                        else:
+                            for idx, i in enumerate(self.optimizer.architectural_weights):
+                                x[idx] = torch.cat((x[idx], torch.unsqueeze(i, dim=0)), dim=0)
 
                     data_train = (
                         data_train[0].to(self.device),
