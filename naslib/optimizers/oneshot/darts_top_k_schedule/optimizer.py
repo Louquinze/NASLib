@@ -54,9 +54,9 @@ class DARTSScheduledOptimizer(DARTSOptimizer):
         if k > len(edge.data.alpha):
             k = len(edge.data.alpha)
         topk_arch_parameters = torch.topk(edge.data.alpha, k)
+        topk_arch_parameters = [topk_arch_parameters.indices, topk_arch_parameters.values]
 
-        edge.data.set("sampled_arch_weight", topk_arch_parameters.values, shared=True)
-        edge.data.set("argmax", topk_arch_parameters.indices, shared=True)
+        edge.data.set("sampled_arch_weight", topk_arch_parameters, shared=True)
 
     @staticmethod
     def remove_sampled_alphas(edge):
@@ -125,7 +125,9 @@ class DARTSScheduledMixedOp(DARTSMixedOp):
     def get_weights(self, edge_data):
         return edge_data.sampled_arch_weight
 
+    def process_weights(self, weights):
+        weights[1] = torch.softmax(weights[1], dim=-1)
+        return weights
+
     def apply_weights(self, x, weights):
-        # print(weights, self.primitives)
-        # Todo fix indices issue
-        return sum(w * op(x, None) for w, op in zip(weights, self.primitives))
+        return sum(value * self.primitives[int(idx)](x, None) for idx, value in zip(weights[0], weights[1]))
