@@ -49,7 +49,8 @@ class DARTSScheduledOptimizer(DARTSOptimizer):
     def sample_alphas(edge, epoch, max_epochs):
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         # arch_parameters = torch.unsqueeze(edge.data.alpha, dim=0)
-
+        # todo dont pass all the alhas etc. only the number k the rest is done in apply weights
+        #  --> indcies can change during batch
         k = max((int(len(edge.data.alpha) * 1 - (epoch / max_epochs)), 1))
         topk_arch_parameters = torch.topk(edge.data.alpha, k)
         topk_arch_parameters = [topk_arch_parameters.indices, topk_arch_parameters.values]
