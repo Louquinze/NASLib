@@ -147,7 +147,10 @@ class Trainer(object):
                         data_val[1].to(self.device, non_blocking=True),
                     )
 
-                    stats = self.optimizer.step(data_train, data_val)
+                    if "Scheduled" in type(self.optimizer).__name__:
+                        stats = self.optimizer.step(data_train, data_val, e+1)
+                    else:
+                        stats = self.optimizer.step(data_train, data_val)
                     logits_train, logits_val, train_loss, val_loss = stats
 
                     self._store_accuracies(logits_train, data_train[1], "train")
