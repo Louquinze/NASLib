@@ -50,9 +50,7 @@ class DARTSScheduledOptimizer(DARTSOptimizer):
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         # arch_parameters = torch.unsqueeze(edge.data.alpha, dim=0)
 
-        k = torch.max(torch.tensor([1, max_epochs // epoch]))
-        if k > len(edge.data.alpha):
-            k = len(edge.data.alpha)
+        k = max((int(len(edge.data.alpha) * 1 - (epoch / max_epochs)), 1))
         topk_arch_parameters = torch.topk(edge.data.alpha, k)
         topk_arch_parameters = [topk_arch_parameters.indices, topk_arch_parameters.values]
 
