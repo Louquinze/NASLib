@@ -23,7 +23,7 @@ config.search.epochs = 10
 config.search.checkpoint_freq = config.search.epochs + 1
 config.evaluation.epochs = 5
 config.evaluation.checkpoint_freq = config.evaluation.epochs + 1
-optimizer = DARTSScheduledOptimizer(config)
+optimizer = GDASOptimizer(config)
 # optimizer = DARTSPropOptimizer(config)
 # optimizer = DARTSOptimizer(config)
 optimizer.adapt_search_space(search_space)
