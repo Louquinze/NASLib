@@ -132,8 +132,8 @@ class GDASOptimizer(DARTSOptimizer):
         # Update architecture weights
         self.arch_optimizer.zero_grad()
         logits_val = self.graph(input_val)
-        print(logits_val)
-        val_loss = self.loss(logits_val, target_val).clamp(max=900, min=-900)
+        logger.info(f"max: {max(logits_val)}, min: {min(logits_val)},")
+        val_loss = self.loss(logits_val, target_val)
         logger.info(f"loss: {val_loss}")
         val_loss.backward()
         logger.info(f"backward loss: {val_loss}")
