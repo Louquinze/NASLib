@@ -191,8 +191,7 @@ class GDASMixedOp(MixedOp):
         """
 
         argmax = torch.argmax(weights)
-        assert not weights.isnan().any()
-        assert not weights.isinf().any()
+        logger.info(torch.max(weights), torch.min(weights))
 
         weighted_sum = sum(
             weights[i] * op(x, None) if i == argmax else weights[i]
