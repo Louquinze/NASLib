@@ -11,9 +11,7 @@ logger = logging.getLogger(__name__)
 class GDASOptimizer(DARTSOptimizer):
     """
     Implements GDAS as defined in
-
         Dong and Yang (2019): Searching for a Robust Neural Architecture in Four GPU Hours
-
     """
 
     def __init__(
@@ -25,7 +23,6 @@ class GDASOptimizer(DARTSOptimizer):
     ):
         """
         Instantiate the optimizer
-
         Args:
             epochs (int): Number of epochs. Required for tau
             tau_max (float): Initial tau
@@ -65,7 +62,6 @@ class GDASOptimizer(DARTSOptimizer):
     def new_epoch(self, epoch):
         """
         Update the tau softmax parameter at the edges.
-
         This is also initially called before epoch 1.
         """
         super().new_epoch(epoch)
@@ -101,8 +97,6 @@ class GDASOptimizer(DARTSOptimizer):
                 or (torch.isinf(probs).any())
                 or (torch.isnan(probs).any())
             ):
-                if arch_parameters.isnan().any():
-                    raise NotImplementedError
                 continue
             else:
                 break
@@ -132,12 +126,8 @@ class GDASOptimizer(DARTSOptimizer):
         # Update architecture weights
         self.arch_optimizer.zero_grad()
         logits_val = self.graph(input_val)
-        logger.info(f"max: {torch.max(logits_val)}, min: {torch.min(logits_val)},")
         val_loss = self.loss(logits_val, target_val)
-        logger.info(f"loss: {val_loss}")
         val_loss.backward()
-        logger.info(f"backward loss: {val_loss}")
-        logger.info(f"{[i.grad for i in  self.architectural_weights.parameters()]}")
         if self.grad_clip:
             torch.nn.utils.clip_grad_norm_(
                 self.architectural_weights.parameters(), self.grad_clip
@@ -176,7 +166,6 @@ class GDASMixedOp(MixedOp):
     def __init__(self, primitives, min_cuda_memory=False):
         """
         Initialize the mixed op for GDAS.
-
         Args:
             primitives (list): The primitive operations to sample from.
         """
