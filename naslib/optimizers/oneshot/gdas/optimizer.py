@@ -194,7 +194,6 @@ class GDASMixedOp(MixedOp):
         """
 
         argmax = torch.argmax(weights)
-        print(torch.max(weights), torch.min(weights))
 
         weighted_sum = sum(
             weights[i] * op(x, None) if i == argmax else weights[i]
