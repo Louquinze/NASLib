@@ -102,7 +102,8 @@ class GDASOptimizer(DARTSOptimizer):
                 or (torch.isnan(probs).any())
             ):
                 if arch_parameters.isnan().any():
-                    edge.data.alpha = torch.ones_like(edge.data.alpha)/len(edge.data.alpha)
+                    edge.data.set("sampled_arch_weight", torch.ones_like(edge.data.alpha)/len(edge.data.alpha),
+                                  shared=True)
                     arch_parameters = torch.unsqueeze(edge.data.alpha, dim=0)
                 continue
             else:
