@@ -17,11 +17,11 @@ class GDASOptimizer(DARTSOptimizer):
     """
 
     def __init__(
-            self,
-            config,
-            op_optimizer: torch.optim.Optimizer = torch.optim.SGD,
-            arch_optimizer: torch.optim.Optimizer = torch.optim.Adam,
-            loss_criteria=torch.nn.CrossEntropyLoss(),
+        self,
+        config,
+        op_optimizer: torch.optim.Optimizer = torch.optim.SGD,
+        arch_optimizer: torch.optim.Optimizer = torch.optim.Adam,
+        loss_criteria=torch.nn.CrossEntropyLoss(),
     ):
         """
         Instantiate the optimizer
@@ -97,12 +97,12 @@ class GDASOptimizer(DARTSOptimizer):
             one_h = torch.zeros_like(logits).scatter_(-1, index, 1.0)
             hardwts = one_h - probs.detach() + probs
             if (
-                    (torch.isinf(gumbels).any())
-                    or (torch.isinf(probs).any())
-                    or (torch.isnan(probs).any())
+                (torch.isinf(gumbels).any())
+                or (torch.isinf(probs).any())
+                or (torch.isnan(probs).any())
             ):
                 if arch_parameters.isnan().any():
-                    logger.info("arch parameters are nan")
+                    raise NotImplementedError
                 continue
             else:
                 break
@@ -133,7 +133,9 @@ class GDASOptimizer(DARTSOptimizer):
         self.arch_optimizer.zero_grad()
         logits_val = self.graph(input_val)
         val_loss = self.loss(logits_val, target_val)
+        logger.info(f"loss: {val_loss}")
         val_loss.backward()
+        logger.info(f"backward loss: {val_loss}")
         if self.grad_clip:
             torch.nn.utils.clip_grad_norm_(
                 self.architectural_weights.parameters(), self.grad_clip
@@ -194,8 +196,7 @@ class GDASMixedOp(MixedOp):
         argmax = torch.argmax(weights)
 
         weighted_sum = sum(
-            (weights[i] * op(x, None)).clamp(max=32000, min=-32000) if i == argmax else weights[i].clamp(max=32000,
-                                                                                                         min=-32000)
+            weights[i] * op(x, None) if i == argmax else weights[i]
             for i, op in enumerate(self.primitives)
         )
 
