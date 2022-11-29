@@ -81,6 +81,8 @@ class GDASOptimizer(DARTSOptimizer):
         # https://github.com/D-X-Y/AutoDL-Projects/blob/befa6bcb00e0a8fcfba447d2a1348202759f58c9/lib/models/cell_searchs/search_cells.py#L51
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         arch_parameters = torch.unsqueeze(edge.data.alpha, dim=0)
+        if arch_parameters.isnan().any():
+            raise ValueError
 
         while True:
             gumbels = -torch.empty_like(arch_parameters).exponential_().log()
