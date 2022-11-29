@@ -49,18 +49,14 @@ class DARTSScheduledOptimizer(DARTSOptimizer):
     def sample_alphas(edge, epoch, max_epochs):
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         # arch_parameters = torch.unsqueeze(edge.data.alpha, dim=0)
-        # todo dont pass all the alhas etc. only the number k the rest is done in apply weights
-        #  --> indcies can change during batch
-        k = max((int(len(edge.data.alpha) * 1 - (epoch / max_epochs)), 1))
-        topk_arch_parameters = torch.topk(edge.data.alpha, k)
-        topk_arch_parameters = [topk_arch_parameters.indices, topk_arch_parameters.values]
 
-        edge.data.set("sampled_arch_weight", topk_arch_parameters, shared=True)
+        k = max((int(len(edge.data.alpha) * (1 - (epoch / max_epochs))), 1))
+        edge.data.set("k", k, shared=True)
 
     @staticmethod
     def remove_sampled_alphas(edge):
-        if edge.data.has("sampled_arch_weight"):
-            edge.data.remove("sampled_arch_weight")
+        if edge.data.has("k"):
+            edge.data.remove("k")
 
     def step(self, data_train, data_val, epoch):
 
@@ -122,11 +118,15 @@ class DARTSScheduledMixedOp(DARTSMixedOp):
         super().__init__(primitives)
 
     def get_weights(self, edge_data):
-        return edge_data.sampled_arch_weight
+        return edge_data.alpha, edge_data.k
 
     def process_weights(self, weights):
-        weights[1] = torch.softmax(weights[1], dim=-1)
         return weights
 
     def apply_weights(self, x, weights):
-        return sum(value * self.primitives[int(idx)](x, None) for idx, value in zip(weights[0], weights[1]))
+        arch_alphas = torch.cat(tuple(
+            torch.unsqueeze(weights[0][idx], dim=0) for idx in torch.topk(weights[0], weights[1]).indices))
+        arch_alphas = torch.softmax(arch_alphas, dim=-1)
+        return sum(
+            weight * self.primitives[int(idx)](x, None) for idx, weight in
+            zip(torch.topk(weights[0], weights[1]).indices, arch_alphas))
