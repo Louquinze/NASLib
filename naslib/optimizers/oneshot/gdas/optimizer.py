@@ -17,11 +17,11 @@ class GDASOptimizer(DARTSOptimizer):
     """
 
     def __init__(
-        self,
-        config,
-        op_optimizer: torch.optim.Optimizer = torch.optim.SGD,
-        arch_optimizer: torch.optim.Optimizer = torch.optim.Adam,
-        loss_criteria=torch.nn.CrossEntropyLoss(),
+            self,
+            config,
+            op_optimizer: torch.optim.Optimizer = torch.optim.SGD,
+            arch_optimizer: torch.optim.Optimizer = torch.optim.Adam,
+            loss_criteria=torch.nn.CrossEntropyLoss(),
     ):
         """
         Instantiate the optimizer
@@ -97,16 +97,12 @@ class GDASOptimizer(DARTSOptimizer):
             one_h = torch.zeros_like(logits).scatter_(-1, index, 1.0)
             hardwts = one_h - probs.detach() + probs
             if (
-                (torch.isinf(gumbels).any())
-                or (torch.isinf(probs).any())
-                or (torch.isnan(probs).any())
+                    (torch.isinf(gumbels).any())
+                    or (torch.isinf(probs).any())
+                    or (torch.isnan(probs).any())
             ):
                 if arch_parameters.isnan().any():
                     logger.info("arch parameters are nan")
-                    edge.data.set("alpha", torch.ones_like(edge.data.alpha)/len(edge.data.alpha),
-                                  shared=True)
-                    arch_parameters = torch.unsqueeze(edge.data.alpha, dim=0)
-                    logger.info(f"new arch parameters: {edge.data.alpha}")
                 continue
             else:
                 break
@@ -198,7 +194,8 @@ class GDASMixedOp(MixedOp):
         argmax = torch.argmax(weights)
 
         weighted_sum = sum(
-            weights[i] * op(x, None) if i == argmax else weights[i]
+            (weights[i] * op(x, None)).clamp(max=32000, min=-32000) if i == argmax else weights[i].clamp(max=32000,
+                                                                                                         min=-32000)
             for i, op in enumerate(self.primitives)
         )
 
