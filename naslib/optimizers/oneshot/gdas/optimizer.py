@@ -129,17 +129,17 @@ class GDASOptimizer(DARTSOptimizer):
         self.arch_optimizer.zero_grad()
         logits_val = self.graph(input_val)
         val_loss = self.loss(logits_val, target_val)
-        logger.info(f"for arch step: {[(i, i.grad) for i in self.architectural_weights.parameters()]}")
+
         val_loss.backward()
         if self.grad_clip:
             torch.nn.utils.clip_grad_norm_(
                 self.architectural_weights.parameters(), self.grad_clip
             )
-        logger.info(val_loss)
-        logger.info(f"for arch step: {[(i, i.grad) for i in self.architectural_weights.parameters()]}")
-        # for a in self.architectural_weights.parameters():
-        #     a.grad = (torch.ones_like(a) - 0.1).detach()
-        # print([i for i in self.architectural_weights.parameters()])
+        for a in self.architectural_weights.parameters():
+            if a.isnan().any():
+                logger.info("nan in grad values chose small random numbers")
+                a.grad = torch.rand_like(a.grad)
+
         self.arch_optimizer.step()
         logger.info(f"after arch step: {[i for i in self.architectural_weights.parameters()]}")
 
