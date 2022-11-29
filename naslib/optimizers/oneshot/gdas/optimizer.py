@@ -134,7 +134,9 @@ class GDASOptimizer(DARTSOptimizer):
             torch.nn.utils.clip_grad_norm_(
                 self.architectural_weights.parameters(), self.grad_clip
             )
+        logger.info(f"for arch step: {[i for i in self.architectural_weights.parameters()]}")
         self.arch_optimizer.step()
+        logger.info(f"after arch step: {[i for i in self.architectural_weights.parameters()]}")
 
         # has to be done again, cause val_loss.backward() frees the gradient from sampled alphas
         # TODO: this is not how it is intended because the samples are now different. Another
