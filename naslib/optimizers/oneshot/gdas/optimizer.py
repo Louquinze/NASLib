@@ -129,6 +129,7 @@ class GDASOptimizer(DARTSOptimizer):
         self.arch_optimizer.zero_grad()
         logits_val = self.graph(input_val)
         val_loss = self.loss(logits_val, target_val)
+        logger.info(f"for arch step: {[(i, i.grad) for i in self.architectural_weights.parameters()]}")
         val_loss.backward()
         if self.grad_clip:
             torch.nn.utils.clip_grad_norm_(
@@ -190,6 +191,8 @@ class GDASMixedOp(MixedOp):
         """
 
         argmax = torch.argmax(weights)
+        assert not weights.isnan().any()
+        assert not weights.isinf().any()
 
         weighted_sum = sum(
             weights[i] * op(x, None) if i == argmax else weights[i]
