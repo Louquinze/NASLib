@@ -136,6 +136,7 @@ class GDASOptimizer(DARTSOptimizer):
         logger.info(f"loss: {val_loss}")
         val_loss.backward()
         logger.info(f"backward loss: {val_loss}")
+        logger.info(f"{[i.grad for i in  self.architectural_weights.parameters()]}")
         if self.grad_clip:
             torch.nn.utils.clip_grad_norm_(
                 self.architectural_weights.parameters(), self.grad_clip
