@@ -81,8 +81,6 @@ class GDASOptimizer(DARTSOptimizer):
         # https://github.com/D-X-Y/AutoDL-Projects/blob/befa6bcb00e0a8fcfba447d2a1348202759f58c9/lib/models/cell_searchs/search_cells.py#L51
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         arch_parameters = torch.unsqueeze(edge.data.alpha, dim=0)
-        if arch_parameters.isnan().any():
-            raise ValueError
 
         while True:
             gumbels = -torch.empty_like(arch_parameters).exponential_().log()
@@ -129,17 +127,11 @@ class GDASOptimizer(DARTSOptimizer):
         self.arch_optimizer.zero_grad()
         logits_val = self.graph(input_val)
         val_loss = self.loss(logits_val, target_val)
-
         val_loss.backward()
         if self.grad_clip:
             torch.nn.utils.clip_grad_norm_(
                 self.architectural_weights.parameters(), self.grad_clip
             )
-        for a in self.architectural_weights.parameters():
-            if a.isnan().any():
-                logger.info("nan in grad values chose small random numbers")
-                a.grad = torch.rand_like(a.grad)
-
         self.arch_optimizer.step()
 
         # has to be done again, cause val_loss.backward() frees the gradient from sampled alphas
