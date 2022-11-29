@@ -137,6 +137,9 @@ class GDASOptimizer(DARTSOptimizer):
             )
         logger.info(val_loss)
         logger.info(f"for arch step: {[(i, i.grad) for i in self.architectural_weights.parameters()]}")
+        # for a in self.architectural_weights.parameters():
+        #     a.grad = (torch.ones_like(a) - 0.1).detach()
+        # print([i for i in self.architectural_weights.parameters()])
         self.arch_optimizer.step()
         logger.info(f"after arch step: {[i for i in self.architectural_weights.parameters()]}")
 
@@ -191,7 +194,7 @@ class GDASMixedOp(MixedOp):
         """
 
         argmax = torch.argmax(weights)
-        logger.info(torch.max(weights), torch.min(weights))
+        print(torch.max(weights), torch.min(weights))
 
         weighted_sum = sum(
             weights[i] * op(x, None) if i == argmax else weights[i]
