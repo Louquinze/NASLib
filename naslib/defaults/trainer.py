@@ -363,6 +363,20 @@ class Trainer(object):
         else:
             best_arch.to(self.device)
             if retrain:
+                self.errors_dict = utils.AttrDict(
+                    {
+                        "train_acc": [],
+                        "train_loss": [],
+                        "valid_acc": [],
+                        "valid_loss": [],
+                        "test_acc": [],
+                        "test_loss": [],
+                        "runtime": [],
+                        "train_time": [],
+                        "arch_eval": [],
+                    }
+                )
+
                 logger.info("Starting retraining from scratch")
                 best_arch.reset_weights(inplace=True)
 
@@ -474,9 +488,16 @@ class Trainer(object):
                                     logits_valid, target_valid, "val"
                                 )
 
+                    self.errors_dict.train_acc.append(self.train_top1.avg)
+                    self.errors_dict.train_loss.append(self.train_loss.avg)
+                    self.errors_dict.valid_acc.append(self.val_top1.avg)
+                    self.errors_dict.valid_loss.append(self.val_loss.avg)
+
                     scheduler.step()
                     self.periodic_checkpointer.step(e)
                     self._log_and_reset_accuracies(e)
+
+                self._log_to_json(extension="_evaluation")
 
             # Disable drop path
             best_arch.update_edges(
@@ -656,18 +677,18 @@ class Trainer(object):
                 return checkpoint.get("iteration", -1) + 1
         return 0
 
-    def _log_to_json(self):
+    def _log_to_json(self, extension=""):
         """log training statistics to json file"""
         if not os.path.exists(self.config.save):
             os.makedirs(self.config.save)
         if not self.lightweight_output:
             with codecs.open(
-                os.path.join(self.config.save, "errors.json"), "w", encoding="utf-8"
+                os.path.join(self.config.save, f"errors{extension}.json"), "w", encoding="utf-8"
             ) as file:
                 json.dump(self.errors_dict, file, separators=(",", ":"))
         else:
             with codecs.open(
-                os.path.join(self.config.save, "errors.json"), "w", encoding="utf-8"
+                os.path.join(self.config.save, f"errors{extension}.json"), "w", encoding="utf-8"
             ) as file:
                 lightweight_dict = copy.deepcopy(self.errors_dict)
                 for key in ["arch_eval", "train_loss", "valid_loss", "test_loss"]:
