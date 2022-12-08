@@ -14,7 +14,7 @@ import naslib.search_spaces.core.primitives as ops
 logger = logging.getLogger(__name__)
 
 
-class DARTSScheduledRevOptimizer(DARTSOptimizer):
+class DARTSScheduledRevOptimizerV2(DARTSOptimizer):
     """
     Implementation of the DARTS paper as in
         Liu et al. 2019: DARTS: Differentiable Architecture Search.
@@ -49,8 +49,8 @@ class DARTSScheduledRevOptimizer(DARTSOptimizer):
     def sample_alphas(edge, epoch, max_epochs):
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         # arch_parameters = torch.unsqueeze(edge.data.alpha, dim=0)
-        w = 1 / (max_epochs ** 2)
-        k = max(int(w * (epoch ** 2) * len(edge.data.alpha)), 1)
+        w = torch.exp(-((epoch-max_epochs//2)**2)//max_epochs)
+        k = max(int(w * len(edge.data.alpha)), 1)
         edge.data.set("k", k, shared=True)
 
     @staticmethod
