@@ -42,14 +42,14 @@ class DARTSScheduledRevOptimizerV2(DARTSOptimizer):
         Args:
 
         """
-        super(DARTSScheduledRevOptimizer, self).__init__(config, op_optimizer, arch_optimizer, loss_criteria)
+        super(DARTSScheduledRevOptimizerV2, self).__init__(config, op_optimizer, arch_optimizer, loss_criteria)
         self.epochs = config.search.epochs
 
     @staticmethod
     def sample_alphas(edge, epoch, max_epochs):
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         # arch_parameters = torch.unsqueeze(edge.data.alpha, dim=0)
-        w = torch.exp(-((epoch-max_epochs//2)**2)//max_epochs)
+        w = np.exp(-(((epoch-max_epochs)//2)**2)//max_epochs)
         k = max(int(w * len(edge.data.alpha)), 1)
         edge.data.set("k", k, shared=True)
 
