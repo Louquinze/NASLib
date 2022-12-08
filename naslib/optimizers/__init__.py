@@ -1,6 +1,7 @@
 from .oneshot.darts.optimizer import DARTSOptimizer
 from .oneshot.darts_top_k.optimizer import DARTSTopKOptimizer
 from .oneshot.darts_top_k_schedule.optimizer import DARTSScheduledOptimizer
+from .oneshot.darts_top_k_schedule_rev.optimizer import DARTSScheduledRevOptimizer
 from .oneshot.edge_popup.optimizer import EdgePopUpOptimizer
 from .oneshot.darts_prop.optimizer import DARTSPropOptimizer
 from .oneshot.gsparsity.optimizer import GSparseOptimizer

@@ -206,7 +206,10 @@ class Trainer(object):
                 self.train_top1.avg = train_acc
                 self.val_top1.avg = valid_acc
 
-            self.periodic_checkpointer.step(e)
+            try:
+                self.periodic_checkpointer.step(e)
+            except Exception as ex:
+                print(ex)
 
             anytime_results = self.optimizer.test_statistics()
             if anytime_results:
