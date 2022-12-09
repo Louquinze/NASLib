@@ -124,7 +124,7 @@ class DARTSScheduledMixedOp(DARTSMixedOp):
         return weights
 
     def apply_weights(self, x, weights):
-        weights[0] = torch.softmax(weights[0], dim=-1)
+        weights[0] = torch.softmax(torch.Tensor(weights[0]), dim=-1)
         argmax = torch.topk(weights[0], weights[1])
         norm_vec = 1 / sum(i for i in argmax.values)
         return sum(norm_vec * weights[0][idx] * self.primitives[idx](x, None) for idx in range(len(self.primitives)) if
