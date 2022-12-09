@@ -21,7 +21,7 @@ class DARTSRandomOptimizer(DARTSOptimizer):
     """
 
     @staticmethod
-    def update_ops(edge, topk=1):
+    def update_ops(edge):
         """
         Function to replace the primitive ops at the edges
         with the DARTS specific MixedOp.
@@ -55,7 +55,7 @@ class DARTSRandomMixedOp(DARTSMixedOp):
         super().__init__(primitives)
 
     def get_weights(self, edge_data):
-        return edge_data.alpha, edge_data.k
+        return edge_data.alpha
 
     def process_weights(self, weights):
         return torch.softmax(weights, dim=-1)
