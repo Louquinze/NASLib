@@ -76,7 +76,7 @@ class DARTSScheduledRevOptimizerV3(DARTSOptimizer):
         val_loss = self.loss(logits_val, target_val)
         val_loss.backward()
         if self.grad_clip:
-            torch.nn.utils.clip_grad_value_(
+            torch.nn.utils.clip_grad_norm_(
                 self.architectural_weights.parameters(), self.grad_clip
             )
         self.arch_optimizer.step()
@@ -96,7 +96,7 @@ class DARTSScheduledRevOptimizerV3(DARTSOptimizer):
         train_loss = self.loss(logits_train, target_train)
         train_loss.backward()
         if self.grad_clip:
-            torch.nn.utils.clip_grad_value_(self.graph.parameters(), self.grad_clip)
+            torch.nn.utils.clip_grad_norm_(self.graph.parameters(), self.grad_clip)
         self.op_optimizer.step()
 
         # in order to properly unparse remove the alphas again
