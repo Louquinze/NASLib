@@ -14,7 +14,7 @@ import naslib.search_spaces.core.primitives as ops
 logger = logging.getLogger(__name__)
 
 
-class DARTSScheduledRevOptimizerV2(DARTSOptimizer):
+class DARTSScheduledRevOptimizerV3(DARTSOptimizer):
     """
     Implementation of the DARTS paper as in
         Liu et al. 2019: DARTS: Differentiable Architecture Search.
@@ -42,7 +42,7 @@ class DARTSScheduledRevOptimizerV2(DARTSOptimizer):
         Args:
 
         """
-        super(DARTSScheduledRevOptimizerV2, self).__init__(config, op_optimizer, arch_optimizer, loss_criteria)
+        super(DARTSScheduledRevOptimizerV3, self).__init__(config, op_optimizer, arch_optimizer, loss_criteria)
         self.epochs = config.search.epochs
 
     @staticmethod
