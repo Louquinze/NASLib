@@ -61,7 +61,7 @@ class DARTSRandomMixedOp(DARTSMixedOp):
         return torch.softmax(weights, dim=-1)
 
     def apply_weights(self, x, weights):
-        if torch.randn(1) < 0.1:
+        if torch.randn(1) < 0.05:
             return sum(w * op(x, None) for w, op in zip(weights, self.primitives))
         else:
             return self.primitives[torch.argmax(weights)](x, None)
