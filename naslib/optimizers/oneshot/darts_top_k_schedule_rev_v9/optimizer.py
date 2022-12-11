@@ -14,20 +14,20 @@ import naslib.search_spaces.core.primitives as ops
 logger = logging.getLogger(__name__)
 
 
-class DARTSRandomOptimizer(DARTSOptimizer):
+class DARTSScheduledRevOptimizerV9(DARTSOptimizer):
     """
     Implementation of the DARTS paper as in
         Liu et al. 2019: DARTS: Differentiable Architecture Search.
     """
 
     @staticmethod
-    def update_ops(edge):
+    def update_ops(edge, topk=1):
         """
         Function to replace the primitive ops at the edges
         with the DARTS specific MixedOp.
         """
         primitives = edge.data.op
-        edge.data.set("op", DARTSRandomMixedOp(primitives))
+        edge.data.set("op", DARTSScheduledMixedOp(primitives))
 
     def __init__(
             self,
@@ -42,11 +42,74 @@ class DARTSRandomOptimizer(DARTSOptimizer):
         Args:
 
         """
-        super(DARTSRandomOptimizer, self).__init__(config, op_optimizer, arch_optimizer, loss_criteria)
+        super(DARTSScheduledRevOptimizerV9, self).__init__(config, op_optimizer, arch_optimizer, loss_criteria)
+        self.epochs = config.search.epochs
+
+    @staticmethod
+    def sample_alphas(edge, epoch, max_epochs):
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        # arch_parameters = torch.unsqueeze(edge.data.alpha, dim=0)
+        w = 0.5 * np.exp(-(epoch - max_epochs / 2) ** 2 / (max_epochs * 2))
+        k = max(int(w * len(edge.data.alpha)), 1)
+        edge.data.set("k", k, shared=True)
+
+    @staticmethod
+    def remove_sampled_alphas(edge):
+        if edge.data.has("k"):
+            edge.data.remove("k")
+
+    def step(self, data_train, data_val, epoch):
+
+        input_train, target_train = data_train
+        input_val, target_val = data_val
+
+        # sample alphas and set to edges
+        self.graph.update_edges(
+            update_func=lambda edge: self.sample_alphas(edge, epoch, self.epochs),
+            scope=self.scope,
+            private_edge_data=False,
+        )
+
+        # Update architecture weights
+        self.arch_optimizer.zero_grad()
+        logits_val = self.graph(input_val)
+        val_loss = self.loss(logits_val, target_val)
+        val_loss.backward()
+        if self.grad_clip:
+            torch.nn.utils.clip_grad_norm_(
+                self.architectural_weights.parameters(), self.grad_clip
+            )
+        self.arch_optimizer.step()
+
+        # has to be done again, cause val_loss.backward() frees the gradient from sampled alphas
+        # TODO: this is not how it is intended because the samples are now different. Another
+        # option would be to set val_loss.backward(retain_graph=True) but that requires more memory.
+        self.graph.update_edges(
+            update_func=lambda edge: self.sample_alphas(edge, epoch, self.epochs),
+            scope=self.scope,
+            private_edge_data=False,
+        )
+
+        # Update op weights
+        self.op_optimizer.zero_grad()
+        logits_train = self.graph(input_train)
+        train_loss = self.loss(logits_train, target_train)
+        train_loss.backward()
+        if self.grad_clip:
+            torch.nn.utils.clip_grad_norm_(self.graph.parameters(), self.grad_clip)
+        self.op_optimizer.step()
+
+        # in order to properly unparse remove the alphas again
+        self.graph.update_edges(
+            update_func=self.remove_sampled_alphas,
+            scope=self.scope,
+            private_edge_data=False,
+        )
+
+        return logits_train, logits_val, train_loss, val_loss
 
 
-
-class DARTSRandomMixedOp(DARTSMixedOp):
+class DARTSScheduledMixedOp(DARTSMixedOp):
     """
     Continous relaxation of the discrete search space.
     """
@@ -55,14 +118,14 @@ class DARTSRandomMixedOp(DARTSMixedOp):
         super().__init__(primitives)
 
     def get_weights(self, edge_data):
-        return edge_data.alpha
+        return edge_data.alpha, edge_data.k
 
     def process_weights(self, weights):
-        return torch.softmax(weights, dim=-1)
+        return weights
 
     def apply_weights(self, x, weights):
-        if torch.randn(1) < 0.05:
-            return sum(w * op(x, None) for w, op in zip(weights, self.primitives))
-        else:
-            return self.primitives[torch.argmax(weights)](x, None)
-
+        norm_weights = torch.softmax(weights[0], dim=-1)
+        argmax = torch.topk(norm_weights, weights[1])
+        norm_vec = 1 / sum(i for i in argmax.values)
+        return sum(norm_vec * norm_weights[idx] * self.primitives[idx](x, None) for idx in range(len(self.primitives)) if
+                   idx in argmax.indices)
