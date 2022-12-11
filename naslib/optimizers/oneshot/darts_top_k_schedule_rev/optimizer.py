@@ -49,10 +49,9 @@ class DARTSScheduledRevOptimizer(DARTSOptimizer):
     def sample_alphas(edge, epoch, max_epochs):
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         # arch_parameters = torch.unsqueeze(edge.data.alpha, dim=0)
-        w = 1 / (max_epochs ** 2)
-        k = max(int(w * (epoch ** 2) * len(edge.data.alpha)), 1)
+        w = np.exp(-(epoch - max_epochs / 2) ** 2 / (max_epochs / 2))
+        k = max(int(w * len(edge.data.alpha)), 1)
         edge.data.set("k", k, shared=True)
-
     @staticmethod
     def remove_sampled_alphas(edge):
         if edge.data.has("k"):
