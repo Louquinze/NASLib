@@ -14,7 +14,7 @@ import naslib.search_spaces.core.primitives as ops
 logger = logging.getLogger(__name__)
 
 
-class DARTSScheduledRevOptimizerV2(DARTSOptimizer):
+class DARTSScheduledRevOptimizerV11(DARTSOptimizer):
     """
     Implementation of the DARTS paper as in
         Liu et al. 2019: DARTS: Differentiable Architecture Search.
@@ -42,14 +42,14 @@ class DARTSScheduledRevOptimizerV2(DARTSOptimizer):
         Args:
 
         """
-        super(DARTSScheduledRevOptimizerV2, self).__init__(config, op_optimizer, arch_optimizer, loss_criteria)
+        super(DARTSScheduledRevOptimizerV11, self).__init__(config, op_optimizer, arch_optimizer, loss_criteria)
         self.epochs = config.search.epochs
 
     @staticmethod
     def sample_alphas(edge, epoch, max_epochs):
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         # arch_parameters = torch.unsqueeze(edge.data.alpha, dim=0)
-        w = 0.5 * np.exp(-(epoch - max_epochs / 2) ** 2 / (max_epochs / 2))
+        w = 0.5 * np.sin(epoch * (np.pi/max_epochs))
         k = max(int(w * len(edge.data.alpha)), 1)
         edge.data.set("k", k, shared=True)
 
@@ -124,9 +124,8 @@ class DARTSScheduledMixedOp(DARTSMixedOp):
         return weights
 
     def apply_weights(self, x, weights):
-        arch_alphas = torch.cat(tuple(
-            torch.unsqueeze(weights[0][idx], dim=0) for idx in torch.topk(weights[0], weights[1]).indices))
-        arch_alphas = torch.softmax(arch_alphas, dim=-1)
-        return sum(
-            weight * self.primitives[int(idx)](x, None) for idx, weight in
-            zip(torch.topk(weights[0], weights[1]).indices, arch_alphas))
+        norm_weights = torch.softmax(weights[0], dim=-1)
+        argmax = torch.topk(norm_weights, weights[1])
+        norm_vec = 1 / sum(i for i in argmax.values)
+        return sum(norm_vec * norm_weights[idx] * self.primitives[idx](x, None) for idx in range(len(self.primitives)) if
+                   idx in argmax.indices)

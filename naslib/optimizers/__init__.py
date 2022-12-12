@@ -10,6 +10,9 @@ from .oneshot.darts_top_k_schedule_rev_v6.optimizer import DARTSScheduledRevOpti
 from .oneshot.darts_top_k_schedule_rev_v7.optimizer import DARTSScheduledRevOptimizerV7
 from .oneshot.darts_top_k_schedule_rev_v8.optimizer import DARTSScheduledRevOptimizerV8
 from .oneshot.darts_top_k_schedule_rev_v9.optimizer import DARTSScheduledRevOptimizerV9
+from .oneshot.darts_top_k_schedule_rev_v10.optimizer import DARTSScheduledRevOptimizerV10
+from .oneshot.darts_top_k_schedule_rev_v11.optimizer import DARTSScheduledRevOptimizerV11
+from .oneshot.darts_top_k_schedule_rev_v12.optimizer import DARTSScheduledRevOptimizerV12
 from .oneshot.edge_popup.optimizer import EdgePopUpOptimizer
 from .oneshot.darts_prop.optimizer import DARTSPropOptimizer
 from .oneshot.gsparsity.optimizer import GSparseOptimizer
