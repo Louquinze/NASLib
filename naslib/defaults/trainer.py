@@ -87,6 +87,9 @@ class Trainer(object):
             resume_from (str): Checkpoint file to resume from. If not given then
                 train from scratch.
         """
+        if self.config.save_arch_weights:
+            Path(self.config.save_arch_weights_path).mkdir(parents=True, exist_ok=False)
+
         logger.info("Start training")
 
         np.random.seed(self.config.search.seed)
@@ -114,9 +117,6 @@ class Trainer(object):
             self.train_queue, self.valid_queue, _ = self.build_search_dataloaders(
                 self.config
             )
-
-        if self.config.save_arch_weights:
-            Path(self.config.save_arch_weights_path).mkdir(parents=True, exist_ok=False)
 
         for e in range(start_epoch, self.epochs):
             x = None
