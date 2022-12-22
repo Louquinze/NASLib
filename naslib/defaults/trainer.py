@@ -103,9 +103,9 @@ class Trainer(object):
             )
 
             # Todo check min_learning rate
-            self.arch_scheduler = self.build_search_scheduler(
-                self.optimizer.arch_optimizer, self.config
-            )
+            # self.arch_scheduler = self.build_search_scheduler(
+            #     self.optimizer.arch_optimizer, self.config
+            # )
 
             start_epoch = self._setup_checkpointers(
                 resume_from, period=checkpoint_freq, scheduler=self.scheduler
@@ -163,8 +163,8 @@ class Trainer(object):
 
                     log_every_n_seconds(
                         logging.INFO,
-                        "Epoch {}-{}, Train loss: {:.5f}, validation loss: {:.5f}, learning rate: {}, arch_lr: {}".format(
-                            e, step, train_loss, val_loss, self.scheduler.get_last_lr(), self.arch_scheduler.get_last_lr()
+                        "Epoch {}-{}, Train loss: {:.5f}, validation loss: {:.5f}, learning rate: {}".format(
+                            e, step, train_loss, val_loss, self.scheduler.get_last_lr(),
                         ),
                         n=5,
                     )
@@ -180,7 +180,7 @@ class Trainer(object):
                     self.val_loss.update(float(val_loss.detach().cpu()))
 
                 self.scheduler.step()
-                self.arch_scheduler.step()
+                # self.arch_scheduler.step()
 
                 end_time = time.time()
 
