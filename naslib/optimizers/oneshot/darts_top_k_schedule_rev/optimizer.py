@@ -49,10 +49,7 @@ class DARTSScheduledRevOptimizer(DARTSOptimizer):
     def sample_alphas(edge, epoch, max_epochs):
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         # arch_parameters = torch.unsqueeze(edge.data.alpha, dim=0)
-        if epoch < max_epochs / 2:
-            w = epoch / max_epochs
-        else:
-            w = (max_epochs - epoch) / max_epochs
+        w = epoch / max_epochs
         k = max(int(w * len(edge.data.alpha)), 1)
         edge.data.set("k", k, shared=True)
     @staticmethod

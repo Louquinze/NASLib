@@ -50,7 +50,7 @@ class DARTSScheduledOptimizer(DARTSOptimizer):
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         # arch_parameters = torch.unsqueeze(edge.data.alpha, dim=0)
 
-        k = max((int(0.5 * len(edge.data.alpha) * (1 - (epoch / max_epochs))), 1))
+        k = max((int(len(edge.data.alpha) * (1 - (epoch / max_epochs))), 1))
         edge.data.set("k", k, shared=True)
 
     @staticmethod
