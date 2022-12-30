@@ -79,7 +79,7 @@ class DrNASOptimizer(DARTSOptimizer):
             ).to(self.device)
         )
 
-    def step(self, data_train, data_val, best_model_loss):
+    def step(self, data_train, data_val, best_model_loss, epoch):
         input_train, target_train = data_train
         input_val, target_val = data_val
 
