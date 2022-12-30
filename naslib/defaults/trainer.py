@@ -118,6 +118,7 @@ class Trainer(object):
                 self.config
             )
 
+        best_model_loss = float("inf")
         for e in range(start_epoch, self.epochs):
             x = None
 
@@ -152,10 +153,9 @@ class Trainer(object):
                         data_val[1].to(self.device, non_blocking=True),
                     )
 
-                    if "Scheduled" in type(self.optimizer).__name__:
-                        stats = self.optimizer.step(data_train, data_val, e+1)
-                    else:
-                        stats = self.optimizer.step(data_train, data_val)
+                    stats = self.optimizer.step(data_train, data_val, best_model_loss, e)
+                    stats, best_model_loss = stats[:-1], stats[-1]
+
                     logits_train, logits_val, train_loss, val_loss = stats
 
                     self._store_accuracies(logits_train, data_train[1], "train")

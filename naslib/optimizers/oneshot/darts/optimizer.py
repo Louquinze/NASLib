@@ -91,7 +91,7 @@ class DARTSOptimizer(MetaOptimizer):
             self.architectural_weights.append(alpha)
 
         graph.parse()
-        #logger.info("Parsed graph:\n" + graph.modules_str())
+        # logger.info("Parsed graph:\n" + graph.modules_str())
 
         # Init optimizers
         if self.arch_optimizer is not None:
@@ -145,7 +145,7 @@ class DARTSOptimizer(MetaOptimizer):
         )
         super().new_epoch(epoch)
 
-    def step(self, data_train, data_val):
+    def step(self, data_train, data_val, best_model_loss, epoch):
         input_train, target_train = data_train
         input_val, target_val = data_val
 
@@ -166,12 +166,18 @@ class DARTSOptimizer(MetaOptimizer):
             self.op_optimizer.zero_grad()
             logits_train = self.graph(input_train)
             train_loss = self.loss(logits_train, target_train)
-            train_loss.backward()
-            if self.grad_clip:
-                torch.nn.utils.clip_grad_norm_(self.graph.parameters(), self.grad_clip)
-            self.op_optimizer.step()
+            if train_loss.item() < best_model_loss:
+                best_model_loss = train_loss.item()
+                logger.info(f"Update best loss to: {best_model_loss}")
+            if train_loss.item() < 3 * best_model_loss and epoch > 0:  # skipping bad arch selection of previous step
+                train_loss.backward()
+                if self.grad_clip:
+                    torch.nn.utils.clip_grad_norm_(self.graph.parameters(), self.grad_clip)
+                self.op_optimizer.step()
+            else:
+                self.op_optimizer.zero_grad()
 
-        return logits_train, logits_val, train_loss, val_loss
+        return logits_train, logits_val, train_loss, val_loss, best_model_loss
 
     def get_final_architecture(self):
         logger.info(
@@ -237,10 +243,10 @@ class DARTSOptimizer(MetaOptimizer):
         else:
             self._backward_step(model, criterion, input_valid, target_valid)
 
-        if self.grad_clip is not None:
-            torch.nn.utils.clip_grad_norm_(
-                self.architectural_weights.parameters(), self.grad_clip
-            )
+        # if self.grad_clip is not None:
+        #     torch.nn.utils.clip_grad_norm_(
+        #         self.architectural_weights.parameters(), self.grad_clip
+        #     )
         self.optimizer.step()
 
     def _backward_step(self, model, criterion, input_valid, target_valid):

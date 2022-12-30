@@ -79,7 +79,7 @@ class DrNASOptimizer(DARTSOptimizer):
             ).to(self.device)
         )
 
-    def step(self, data_train, data_val):
+    def step(self, data_train, data_val, best_model_loss):
         input_train, target_train = data_train
         input_val, target_val = data_val
 
@@ -100,10 +100,10 @@ class DrNASOptimizer(DARTSOptimizer):
 
         val_loss.backward()
 
-        if self.grad_clip:
-            torch.nn.utils.clip_grad_norm_(
-                self.architectural_weights.parameters(), self.grad_clip
-            )
+        # if self.grad_clip:
+        #     torch.nn.utils.clip_grad_norm_(
+        #         self.architectural_weights.parameters(), self.grad_clip
+        #     )
         self.arch_optimizer.step()
 
         # has to be done again, cause val_loss.backward() frees the gradient from sampled alphas
@@ -119,11 +119,16 @@ class DrNASOptimizer(DARTSOptimizer):
         self.op_optimizer.zero_grad()
         logits_train = self.graph(input_train)
         train_loss = self.loss(logits_train, target_train)
-        train_loss.backward()
-        if self.grad_clip:
-            torch.nn.utils.clip_grad_norm_(self.graph.parameters(), self.grad_clip)
-        self.op_optimizer.step()
-
+        if train_loss.item() < best_model_loss:
+            best_model_loss = train_loss.item()
+            logger.info(f"Update best loss to: {best_model_loss}")
+        if train_loss.item() < 10 * best_model_loss:  # skipping bad arch selection of previous step
+            train_loss.backward()
+            if self.grad_clip:
+                torch.nn.utils.clip_grad_norm_(self.graph.parameters(), self.grad_clip)
+            self.op_optimizer.step()
+        else:
+            self.op_optimizer.zero_grad()
         # in order to properly unparse remove the alphas again
         self.graph.update_edges(
             update_func=self.remove_sampled_alphas,
@@ -131,7 +136,7 @@ class DrNASOptimizer(DARTSOptimizer):
             private_edge_data=False,
         )
 
-        return logits_train, logits_val, train_loss, val_loss
+        return logits_train, logits_val, train_loss, val_loss, best_model_loss
 
     def _get_kl_reg(self):
         cons = (
