@@ -128,10 +128,10 @@ class GDASOptimizer(DARTSOptimizer):
         logits_val = self.graph(input_val)
         val_loss = self.loss(logits_val, target_val)
         val_loss.backward()
-        # if self.grad_clip:
-        #     torch.nn.utils.clip_grad_norm_(
-        #         self.architectural_weights.parameters(), self.grad_clip
-        #     )
+        if self.grad_clip:
+            torch.nn.utils.clip_grad_norm_(
+                self.architectural_weights.parameters(), 5
+            )
         self.arch_optimizer.step()
 
         # has to be done again, cause val_loss.backward() frees the gradient from sampled alphas
