@@ -184,7 +184,7 @@ class DARTSOptimizer(MetaOptimizer):
 
         return logits_train, logits_val, train_loss, val_loss, best_model_loss
 
-    def get_final_architecture(self):
+    def get_final_architecture(self, eval=False):
         logger.info(
             "Arch weights before discretization: {}".format(
                 [a for a in self.architectural_weights]
@@ -198,7 +198,7 @@ class DARTSOptimizer(MetaOptimizer):
                 primitives = edge.data.op.get_embedded_ops()
                 alphas = edge.data.alpha.detach().cpu()
                 op = primitives[np.argmax(alphas)]
-                if hasattr(op, 'fix_lr_param'):
+                if hasattr(op, 'fix_lr_param') and eval:
                     op.fix_lr_param()
                     logger.info(f"{op.name}, {op.beta}")
                     with open(f'{self.config.save_arch_weights_path}/{op.name}.npy', 'wb') as f:

@@ -147,7 +147,7 @@ class DrNASOptimizer(DARTSOptimizer):
         kl_reg = self.reg_scale * torch.sum(kl_divergence(q, p))
         return kl_reg
 
-    def get_final_architecture(self):
+    def get_final_architecture(self, eval=False):
         logger.info(
             "Arch weights before discretization: {}".format(
                 [a for a in self.architectural_weights]
@@ -161,7 +161,7 @@ class DrNASOptimizer(DARTSOptimizer):
                 primitives = edge.data.op.get_embedded_ops()
                 alphas = edge.data.alpha.detach().cpu()
                 op = primitives[np.argmax(alphas)]
-                if hasattr(op, 'fix_lr_param'):
+                if hasattr(op, 'fix_lr_param') and eval:
                     op.fix_lr_param()
                     logger.info(f"{op.name}, {op.beta}")
                     with open(f'{self.config.save_arch_weights_path}/{op.name}.npy', 'wb') as f:

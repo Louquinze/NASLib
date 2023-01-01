@@ -363,7 +363,7 @@ class Trainer(object):
                 )
             self._setup_checkpointers(search_model)  # required to load the architecture
 
-            best_arch = self.optimizer.get_final_architecture()
+            best_arch = self.optimizer.get_final_architecture(eval=True)
         logger.info("Final architecture:\n" + best_arch.modules_str())
 
         if best_arch.QUERYABLE:
