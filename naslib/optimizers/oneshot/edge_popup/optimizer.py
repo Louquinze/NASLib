@@ -229,12 +229,7 @@ class EdgePopUpOptimizer(MetaOptimizer):
             if edge.data.has("alpha"):
                 primitives = edge.data.op.get_embedded_ops()
                 alphas = edge.data.alpha.detach().cpu()
-                op = primitives[np.argmax(alphas)]
-                if hasattr(op, 'fix_lr_param') and eval:
-                    op.fix_lr_param()
-                    with open(f'{self.config.save_arch_weights_path}/{op.name}_{time.time()}.npy', 'wb') as f:
-                        np.save(f, op.beta.detach().cpu().numpy())
-                edge.data.set("op", op)
+                edge.data.set("op", primitives[np.argmax(alphas)])
 
 
         graph.update_edges(discretize_ops, scope=self.scope, private_edge_data=True)
