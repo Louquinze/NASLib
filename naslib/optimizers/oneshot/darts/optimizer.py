@@ -1,3 +1,5 @@
+import time
+
 import numpy as np
 import torch
 import logging
@@ -200,8 +202,8 @@ class DARTSOptimizer(MetaOptimizer):
                 op = primitives[np.argmax(alphas)]
                 if hasattr(op, 'fix_lr_param') and eval:
                     op.fix_lr_param()
-                    logger.info(f"{op.name}, {op.beta}")
-                    with open(f'{self.config.save_arch_weights_path}/{op.name}.npy', 'wb') as f:
+                    logger.info(f"{op.name}")
+                    with open(f'{self.config.save_arch_weights_path}/{op.name}_{time.time()}.npy', 'wb') as f:
                         np.save(f, op.beta.detach().cpu().numpy())
                 edge.data.set("op", op)
 

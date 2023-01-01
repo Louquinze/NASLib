@@ -1,4 +1,5 @@
 import numpy as np
+import time
 import torch
 import torch.nn as nn
 import torch.autograd as autograd
@@ -210,7 +211,7 @@ class EdgePopUpOptimizer(MetaOptimizer):
             else:
                 self.op_optimizer.zero_grad()
 
-        return logits_train, logits_val, train_loss, val_loss
+        return logits_train, logits_val, train_loss, val_loss, best_model_loss
 
     def get_final_architecture(self, eval=False):
         logger.info(
@@ -228,8 +229,7 @@ class EdgePopUpOptimizer(MetaOptimizer):
                 op = primitives[np.argmax(alphas)]
                 if hasattr(op, 'fix_lr_param') and eval:
                     op.fix_lr_param()
-                    logger.info(f"{op.name}, {op.beta}")
-                    with open(f'{self.config.save_arch_weights_path}/{op.name}.npy', 'wb') as f:
+                    with open(f'{self.config.save_arch_weights_path}/{op.name}_{time.time()}.npy', 'wb') as f:
                         np.save(f, op.beta.detach().cpu().numpy())
                 edge.data.set("op", op)
 
@@ -283,10 +283,10 @@ class EdgePopUpOptimizer(MetaOptimizer):
         else:
             self._backward_step(model, criterion, input_valid, target_valid)
 
-        if self.grad_clip is not None:
-            torch.nn.utils.clip_grad_norm_(
-                self.architectural_weights.parameters(), self.grad_clip
-            )
+        # if self.grad_clip is not None:
+        #     torch.nn.utils.clip_grad_norm_(
+        #         self.architectural_weights.parameters(), self.grad_clip
+        #     )
         self.optimizer.step()
 
     def _backward_step(self, model, criterion, input_valid, target_valid):
