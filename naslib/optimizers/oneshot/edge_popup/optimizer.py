@@ -192,7 +192,7 @@ class EdgePopUpOptimizer(MetaOptimizer):
             val_loss = self.loss(logits_val, target_val)
             if self.grad_clip:
                 torch.nn.utils.clip_grad_norm_(
-                    self.architectural_weights.parameters(), self.grad_clip / 10
+                    self.architectural_weights.parameters(), self.grad_clip * 100
                 )
 
             val_loss.backward()
