@@ -130,7 +130,7 @@ class GDASOptimizer(DARTSOptimizer):
         val_loss.backward()
         if self.grad_clip:
             torch.nn.utils.clip_grad_norm_(
-                self.architectural_weights.parameters(), self.grad_clip * 100
+                self.architectural_weights.parameters(), self.grad_clip
             )
         self.arch_optimizer.step()
 

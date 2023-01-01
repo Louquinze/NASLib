@@ -164,7 +164,7 @@ class DARTSOptimizer(MetaOptimizer):
 
             if self.grad_clip is not None:
                 torch.nn.utils.clip_grad_norm_(
-                    self.architectural_weights.parameters(), self.grad_clip * 10
+                    self.architectural_weights.parameters(), self.grad_clip
                 )
 
             self.arch_optimizer.step()
