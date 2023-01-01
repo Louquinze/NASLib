@@ -203,6 +203,9 @@ class EdgePopUpOptimizer(MetaOptimizer):
             self.op_optimizer.zero_grad()
             logits_train = self.graph(input_train)
             train_loss = self.loss(logits_train, target_train)
+            if train_loss.item() < best_model_loss:
+                best_model_loss = train_loss.item()
+                logger.info(f"Update best loss to: {best_model_loss}")
             if train_loss.item() < 10 * best_model_loss:  # skipping bad arch selection of previous step
                 train_loss.backward()
                 if self.grad_clip:
