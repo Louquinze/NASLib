@@ -175,7 +175,7 @@ class EdgePopUpOptimizer(MetaOptimizer):
         )
         super().new_epoch(epoch)
 
-    def step(self, data_train, data_val):
+    def step(self, data_train, data_val, best_model_loss, epoch):
         input_train, target_train = data_train
         input_val, target_val = data_val
 
@@ -189,6 +189,11 @@ class EdgePopUpOptimizer(MetaOptimizer):
             self.arch_optimizer.zero_grad()
             logits_val = self.graph(input_val)
             val_loss = self.loss(logits_val, target_val)
+            if self.grad_clip:
+                torch.nn.utils.clip_grad_norm_(
+                    self.architectural_weights.parameters(), self.grad_clip * 10
+                )
+
             val_loss.backward()
 
             self.arch_optimizer.step()
@@ -197,10 +202,13 @@ class EdgePopUpOptimizer(MetaOptimizer):
             self.op_optimizer.zero_grad()
             logits_train = self.graph(input_train)
             train_loss = self.loss(logits_train, target_train)
-            train_loss.backward()
-            if self.grad_clip:
-                torch.nn.utils.clip_grad_norm_(self.graph.parameters(), self.grad_clip)
-            self.op_optimizer.step()
+            if train_loss.item() < 5 * best_model_loss:  # skipping bad arch selection of previous step
+                train_loss.backward()
+                if self.grad_clip:
+                    torch.nn.utils.clip_grad_norm_(self.graph.parameters(), self.grad_clip)
+                self.op_optimizer.step()
+            else:
+                self.op_optimizer.zero_grad()
 
         return logits_train, logits_val, train_loss, val_loss
 
@@ -217,7 +225,13 @@ class EdgePopUpOptimizer(MetaOptimizer):
             if edge.data.has("alpha"):
                 primitives = edge.data.op.get_embedded_ops()
                 alphas = edge.data.alpha.detach().cpu()
-                edge.data.set("op", primitives[np.argmax(alphas)])
+                op = primitives[np.argmax(alphas)]
+                if hasattr(op, 'fix_lr_param'):
+                    op.fix_lr_param()
+                    logger.info(f"{op.name}, {op.beta}")
+                    with open(f'{self.config.save_arch_weights_path}/{op.name}.npy', 'wb') as f:
+                        np.save(f, op.beta.detach().cpu().numpy())
+                edge.data.set("op", op)
 
 
         graph.update_edges(discretize_ops, scope=self.scope, private_edge_data=True)

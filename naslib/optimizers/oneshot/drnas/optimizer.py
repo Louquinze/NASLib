@@ -160,7 +160,13 @@ class DrNASOptimizer(DARTSOptimizer):
             if edge.data.has("alpha"):
                 primitives = edge.data.op.get_embedded_ops()
                 alphas = edge.data.alpha.detach().cpu()
-                edge.data.set("op", primitives[np.argmax(alphas)])
+                op = primitives[np.argmax(alphas)]
+                if hasattr(op, 'fix_lr_param'):
+                    op.fix_lr_param()
+                    logger.info(f"{op.name}, {op.beta}")
+                    with open(f'{self.config.save_arch_weights_path}/{op.name}.npy', 'wb') as f:
+                        np.save(f, op.beta.detach().cpu().numpy())
+                edge.data.set("op", op)
 
         graph.update_edges(discretize_ops, scope=self.scope, private_edge_data=True)
         graph.prepare_evaluation()
