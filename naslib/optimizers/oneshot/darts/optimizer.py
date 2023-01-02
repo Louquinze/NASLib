@@ -160,15 +160,16 @@ class DARTSOptimizer(MetaOptimizer):
             self.arch_optimizer.zero_grad()
             logits_val = self.graph(input_val)
             val_loss = self.loss(logits_val, target_val)
+            l1_regularization = torch.tensor(0.).cuda()
             for param in self.architectural_weights.parameters():
-                l1_regularization = torch.norm(param, 1) ** 2
+                l1_regularization += torch.norm(param, 1) ** 2
 
             val_loss += l1_regularization
             val_loss.backward()
 
             if self.grad_clip is not None:
                 torch.nn.utils.clip_grad_norm_(
-                    self.architectural_weights.parameters(), self.grad_clip
+                    self.architectural_weights.parameters(), 5
                 )
 
             self.arch_optimizer.step()
@@ -180,7 +181,7 @@ class DARTSOptimizer(MetaOptimizer):
             # if train_loss.item() < best_model_loss:
             #     best_model_loss = train_loss.item()
             #     logger.info(f"Update best loss to: {best_model_loss}")
-            if train_loss.item() < 5 * best_model_loss and epoch > 4:  # skipping bad arch selection of previous step
+            if train_loss.item() < 5 * best_model_loss:  # skipping bad arch selection of previous step
                 train_loss.backward()
                 if self.grad_clip:
                     torch.nn.utils.clip_grad_norm_(self.graph.parameters(), self.grad_clip)

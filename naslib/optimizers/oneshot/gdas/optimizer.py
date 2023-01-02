@@ -35,7 +35,7 @@ class GDASOptimizer(DARTSOptimizer):
         super().__init__(config, op_optimizer, arch_optimizer, loss_criteria)
 
         self.epochs = config.search.epochs
-        self.tau_max = config.search.tau_max
+        self.tau_max = torch.Tensor([config.search.tau_max])
         self.tau_min = config.search.tau_min
 
         # Linear tau schedule
@@ -67,7 +67,7 @@ class GDASOptimizer(DARTSOptimizer):
         super().new_epoch(epoch)
 
         self.tau_curr += self.tau_step
-        logger.info("tau {}".format(self.tau_curr))
+        logger.info("tau {}".format(self.tau_max * torch.exp(torch.tensor(epoch) * -20/self.epochs)))
 
     @staticmethod
     def sample_alphas(edge, tau):
@@ -118,7 +118,8 @@ class GDASOptimizer(DARTSOptimizer):
 
         # sample alphas and set to edges
         self.graph.update_edges(
-            update_func=lambda edge: self.sample_alphas(edge, self.tau_max * torch.exp(epoch * -15/self.epochs)),
+            update_func=lambda edge: self.sample_alphas(edge, self.tau_max *
+                                                        torch.exp(torch.tensor(epoch) * -15/self.epochs)),
             scope=self.scope,
             private_edge_data=False,
         )
@@ -127,7 +128,13 @@ class GDASOptimizer(DARTSOptimizer):
         self.arch_optimizer.zero_grad()
         logits_val = self.graph(input_val)
         val_loss = self.loss(logits_val, target_val)
+        l1_regularization = torch.tensor(0.).cuda()
+        for param in self.architectural_weights.parameters():
+            l1_regularization += torch.norm(param, 1) ** 2
+
+        val_loss += l1_regularization
         val_loss.backward()
+
         if self.grad_clip:
             torch.nn.utils.clip_grad_norm_(
                 self.architectural_weights.parameters(), 5
