@@ -159,12 +159,15 @@ class DARTSOptimizer(MetaOptimizer):
             # Update architecture weights
             self.arch_optimizer.zero_grad()
             logits_val = self.graph(input_val)
+            logits_sum = torch.sum(torch.abs(logits_val))
             val_loss = self.loss(logits_val, target_val)
             l1_regularization = torch.tensor(0.).cuda()
             for param in self.architectural_weights.parameters():
                 l1_regularization += torch.norm(param, 1) ** 2
 
-            val_loss += l1_regularization
+            if logits_val > 2:
+                val_loss += l1_regularization
+                val_loss += logits_sum
             val_loss.backward()
 
             if self.grad_clip is not None:
