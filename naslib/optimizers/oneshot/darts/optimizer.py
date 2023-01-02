@@ -160,6 +160,10 @@ class DARTSOptimizer(MetaOptimizer):
             self.arch_optimizer.zero_grad()
             logits_val = self.graph(input_val)
             val_loss = self.loss(logits_val, target_val)
+            for param in self.architectural_weights.parameters():
+                l1_regularization = torch.norm(param, 1) ** 2
+
+            val_loss += l1_regularization
             val_loss.backward()
 
             if self.grad_clip is not None:
