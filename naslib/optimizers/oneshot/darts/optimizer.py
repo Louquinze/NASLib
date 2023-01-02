@@ -221,7 +221,7 @@ class DARTSOptimizer(MetaOptimizer):
             self.op_optimizer.step()
             # else:
             #     self.op_optimizer.zero_grad()
-        print(val_loss, train_loss)
+        # print(val_loss, train_loss)
         return logits_train, logits_val, train_loss, val_loss, best_model_loss
 
     def get_final_architecture(self, eval=False):
