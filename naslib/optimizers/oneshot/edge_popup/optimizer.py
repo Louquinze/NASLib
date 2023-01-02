@@ -192,7 +192,7 @@ class EdgePopUpOptimizer(MetaOptimizer):
             val_loss = self.loss(logits_val, target_val)
             if self.grad_clip:
                 torch.nn.utils.clip_grad_norm_(
-                    self.architectural_weights.parameters(), self.grad_clip
+                    self.architectural_weights.parameters(), 5
                 )
 
             val_loss.backward()
@@ -412,7 +412,7 @@ class EdgePopUpMixedOp(MixedOp):
 
     def apply_weights(self, x, weights):
         # subnet = GetSubnet.apply(self.scores.abs(), SPARSITY) #TODO: remove abs()
-        sparsity = 1/len(weights) + 1
+        sparsity = 1/len(weights) + 1e-20
         masked_weights = GetSubnet.apply(weights, sparsity)
         # applying edge_popup to the alphas
         return sum(masked_w * op(x, None) for masked_w, op in zip(masked_weights, self.primitives))
