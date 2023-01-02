@@ -95,16 +95,47 @@ class DrNASOptimizer(DARTSOptimizer):
         logits_val = self.graph(input_val)
         val_loss = self.loss(logits_val, target_val)
 
-        if self.reg_type == "kl":
-            val_loss += self._get_kl_reg()
+        if val_loss < 10:
+            if self.reg_type == "kl":
+                val_loss += self._get_kl_reg()
+            val_loss.backward()
 
-        val_loss.backward()
+            if self.grad_clip is not None:
+                torch.nn.utils.clip_grad_norm_(
+                    self.architectural_weights.parameters(), self.grad_clip
+                )
 
-        if self.grad_clip:
-            torch.nn.utils.clip_grad_norm_(
-                self.architectural_weights.parameters(), self.grad_clip * 10
-            )
-        self.arch_optimizer.step()
+            self.arch_optimizer.step()
+        else:
+            del val_loss, logits_val
+            logger.info("reduce alphas with L1Loss")
+            c = 0
+            while True:
+                self.graph.update_edges(
+                    update_func=lambda edge: self.sample_alphas(edge),
+                    scope=self.scope,
+                    private_edge_data=False,
+                )
+
+                self.min_optimizer.zero_grad()
+                logits_val = self.graph(input_val)
+                min_loss = self.min_loss(logits_val, torch.ones_like(logits_val))
+                if self.reg_type == "kl":
+                    min_loss += self._get_kl_reg()
+                min_loss.backward()
+
+                # if self.grad_clip is not None:
+                #     torch.nn.utils.clip_grad_norm_(
+                #         self.architectural_weights.parameters(), self.grad_clip
+                #     )
+
+                val_loss = min_loss
+                self.min_optimizer.step()
+                if c % 10 == 0:
+                    logger.info(f"current min_loss: {val_loss}")
+                c += 1
+                if min_loss < 10:
+                    break
 
         # has to be done again, cause val_loss.backward() frees the gradient from sampled alphas
         # TODO: this is not how it is intended because the samples are now different. Another
@@ -119,16 +150,10 @@ class DrNASOptimizer(DARTSOptimizer):
         self.op_optimizer.zero_grad()
         logits_train = self.graph(input_train)
         train_loss = self.loss(logits_train, target_train)
-        # if train_loss.item() < best_model_loss:
-        #     best_model_loss = train_loss.item()
-        #     logger.info(f"Update best loss to: {best_model_loss}")
-        if train_loss.item() < 5 * best_model_loss and epoch > 4:  # skipping bad arch selection of previous step
-            train_loss.backward()
-            if self.grad_clip:
-                torch.nn.utils.clip_grad_norm_(self.graph.parameters(), self.grad_clip)
-            self.op_optimizer.step()
-        else:
-            self.op_optimizer.zero_grad()
+        train_loss.backward()
+        if self.grad_clip:
+            torch.nn.utils.clip_grad_norm_(self.graph.parameters(), self.grad_clip)
+        self.op_optimizer.step()
         # in order to properly unparse remove the alphas again
         self.graph.update_edges(
             update_func=self.remove_sampled_alphas,

@@ -62,7 +62,7 @@ class DARTSOptimizer(MetaOptimizer):
         self.arch_optimizer = arch_optimizer
         self.min_optimizer = arch_optimizer
         self.loss = loss_criteria
-        self.min_loss = torch.nn.MSELoss()
+        self.min_loss = torch.nn.L1Loss()
         self.grad_clip = self.config.search.grad_clip
 
         self.architectural_weights = torch.nn.ParameterList()
@@ -103,7 +103,7 @@ class DARTSOptimizer(MetaOptimizer):
             self.arch_optimizer = self.arch_optimizer(
                 self.architectural_weights.parameters(),
                 lr=self.config.search.arch_learning_rate,
-                betas=(0.9, 0.999),
+                betas=(0.5, 0.999),
                 weight_decay=self.config.search.arch_weight_decay * 0,
             )
 
@@ -184,21 +184,24 @@ class DARTSOptimizer(MetaOptimizer):
                 self.arch_optimizer.step()
             else:
                 del val_loss, logits_val
-                logger.info("reduce alphas with MSE")
+                logger.info("reduce alphas with L1Loss")
+                c = 0
                 while True:
+                    self.min_optimizer.zero_grad()
                     logits_val = self.graph(input_val)
                     min_loss = self.min_loss(logits_val, torch.ones_like(logits_val))
-                    self.min_optimizer.zero_grad()
                     min_loss.backward()
 
-                    if self.grad_clip is not None and epoch > 0:
-                        torch.nn.utils.clip_grad_norm_(
-                            self.architectural_weights.parameters(), self.grad_clip
-                        )
+                    # if self.grad_clip is not None:
+                    #     torch.nn.utils.clip_grad_norm_(
+                    #         self.architectural_weights.parameters(), self.grad_clip
+                    #     )
 
                     self.min_optimizer.step()
                     val_loss = min_loss
-                    # print(val_loss)
+                    if c % 1 == 0:
+                        logger.info(f"current min_loss: {min_loss}")
+                        c += 1
                     if min_loss < 10:
                         break
 
