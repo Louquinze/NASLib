@@ -118,7 +118,7 @@ class GDASOptimizer(DARTSOptimizer):
 
         # sample alphas and set to edges
         self.graph.update_edges(
-            update_func=lambda edge: self.sample_alphas(edge, 1e-10 + self.tau_max * (1 - epoch / self.epochs)),
+            update_func=lambda edge: self.sample_alphas(edge, self.tau_max * torch.exp(epoch * -15/self.epochs)),
             scope=self.scope,
             private_edge_data=False,
         )
