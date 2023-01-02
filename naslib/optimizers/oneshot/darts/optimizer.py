@@ -165,7 +165,7 @@ class DARTSOptimizer(MetaOptimizer):
             for param in self.architectural_weights.parameters():
                 l1_regularization += torch.norm(param, 1) ** 2
 
-            if logits_val > 2:
+            if val_loss > 2:
                 val_loss += l1_regularization
                 val_loss += logits_sum
             val_loss.backward()
