@@ -28,7 +28,8 @@ class DARTSOptimizer(MetaOptimizer):
         """
         len_primitives = len(edge.data.op)
         alpha = torch.nn.Parameter(
-            1e-3 * torch.randn(size=[len_primitives], requires_grad=True)
+            # 1e-3 * torch.randn(size=[len_primitives], requires_grad=True)
+            torch.ones(len_primitives) * 1 / len_primitives
         )
         edge.data.set("alpha", alpha, shared=True)
 
@@ -59,7 +60,9 @@ class DARTSOptimizer(MetaOptimizer):
         self.config = config
         self.op_optimizer = op_optimizer
         self.arch_optimizer = arch_optimizer
+        self.min_optimizer = arch_optimizer
         self.loss = loss_criteria
+        self.min_loss = torch.nn.MSELoss()
         self.grad_clip = self.config.search.grad_clip
 
         self.architectural_weights = torch.nn.ParameterList()
@@ -100,6 +103,13 @@ class DARTSOptimizer(MetaOptimizer):
             self.arch_optimizer = self.arch_optimizer(
                 self.architectural_weights.parameters(),
                 lr=self.config.search.arch_learning_rate,
+                betas=(0.5, 0.999),
+                weight_decay=self.config.search.arch_weight_decay,
+            )
+
+            self.min_optimizer = self.min_optimizer(
+                self.architectural_weights.parameters(),
+                lr=self.config.search.arch_learning_rate * 100,
                 betas=(0.5, 0.999),
                 weight_decay=self.config.search.arch_weight_decay,
             )
@@ -148,6 +158,7 @@ class DARTSOptimizer(MetaOptimizer):
         super().new_epoch(epoch)
 
     def step(self, data_train, data_val, best_model_loss, epoch):
+        loss_lst = []
         input_train, target_train = data_train
         input_val, target_val = data_val
 
@@ -157,35 +168,38 @@ class DARTSOptimizer(MetaOptimizer):
             raise NotImplementedError()
         else:
             # Update architecture weights
-            self.arch_optimizer.zero_grad()
-            logits_val = self.graph(input_val)
-            logits_sum = torch.sum(torch.abs(logits_val))
-            val_loss = self.loss(logits_val, target_val)
-            l1_regularization = torch.tensor(0.).cuda()
-            for param in self.architectural_weights.parameters():
-                l1_regularization += torch.norm(param, 1) ** 2
+            if best_model_loss < 2.2:
+                self.arch_optimizer.zero_grad()
+                logits_val = self.graph(input_val)
+                val_loss = self.loss(logits_val, target_val)
+                val_loss.backward()
 
-            if val_loss > 2:
-                val_loss += l1_regularization
-                val_loss += logits_sum
-            val_loss.backward()
+                if self.grad_clip is not None:
+                    torch.nn.utils.clip_grad_norm_(
+                        self.architectural_weights.parameters(), self.grad_clip
+                    )
 
-            if self.grad_clip is not None:
-                torch.nn.utils.clip_grad_norm_(
-                    self.architectural_weights.parameters(), 5
-                )
+                self.arch_optimizer.step()
+            else:
+                self.min_optimizer.zero_grad()
+                logits_val = self.graph(input_val)
+                min_loss = self.min_loss(logits_val, torch.ones_like(logits_val))
+                min_loss.backward()
 
-            self.arch_optimizer.step()
+                if self.grad_clip is not None:
+                    torch.nn.utils.clip_grad_norm_(
+                        self.architectural_weights.parameters(), self.grad_clip * 100
+                    )
+
+                self.min_optimizer.step()
+                val_loss = min_loss
 
             # Update op weights
-            # if epoch > 0:
             self.op_optimizer.zero_grad()
             logits_train = self.graph(input_train)
             train_loss = self.loss(logits_train, target_train)
-            # if train_loss.item() < best_model_loss:
-            #     best_model_loss = train_loss.item()
-            #     logger.info(f"Update best loss to: {best_model_loss}")
-            if train_loss.item() < 5 * best_model_loss:  # skipping bad arch selection of previous step
+            loss_lst.append(train_loss.item())
+            if train_loss.item() < 5 * best_model_loss and epoch > 2:  # skipping bad arch selection of previous step
                 train_loss.backward()
                 if self.grad_clip:
                     torch.nn.utils.clip_grad_norm_(self.graph.parameters(), self.grad_clip)
@@ -193,7 +207,7 @@ class DARTSOptimizer(MetaOptimizer):
             else:
                 self.op_optimizer.zero_grad()
 
-        return logits_train, logits_val, train_loss, val_loss, best_model_loss
+        return logits_train, logits_val, train_loss, val_loss, min(loss_lst)
 
     def get_final_architecture(self, eval=False):
         logger.info(
