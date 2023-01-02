@@ -159,6 +159,7 @@ class DARTSOptimizer(MetaOptimizer):
 
     def step(self, data_train, data_val, best_model_loss, epoch):
         loss_lst = []
+        # flag = False
         input_train, target_train = data_train
         input_val, target_val = data_val
 
@@ -171,7 +172,7 @@ class DARTSOptimizer(MetaOptimizer):
             logits_val = self.graph(input_val)
             val_loss = self.loss(logits_val, target_val)
 
-            if val_loss < 3:
+            if val_loss < 10:
                 self.arch_optimizer.zero_grad()
                 val_loss.backward()
 
@@ -198,7 +199,7 @@ class DARTSOptimizer(MetaOptimizer):
                     self.min_optimizer.step()
                     val_loss = min_loss
                     # print(val_loss)
-                    if min_loss < 3:
+                    if min_loss < 10:
                         break
 
             # Update op weights
