@@ -103,14 +103,14 @@ class DARTSOptimizer(MetaOptimizer):
             self.arch_optimizer = self.arch_optimizer(
                 self.architectural_weights.parameters(),
                 lr=self.config.search.arch_learning_rate,
-                betas=(0.5, 0.999),
+                betas=(0.9, 0.999),
                 weight_decay=self.config.search.arch_weight_decay * 0,
             )
 
             self.min_optimizer = self.min_optimizer(
                 self.architectural_weights.parameters(),
-                lr=self.config.search.arch_learning_rate,
-                betas=(0.5, 0.999),
+                lr=0.3,
+                betas=(0.9, 0.999),
                 weight_decay=self.config.search.arch_weight_decay * 0,
             )
 
@@ -170,9 +170,8 @@ class DARTSOptimizer(MetaOptimizer):
             # Update architecture weights
             logits_val = self.graph(input_val)
             val_loss = self.loss(logits_val, target_val)
-            min_loss = self.min_loss(logits_val, torch.ones_like(logits_val))
 
-            if val_loss < 2.2:
+            if val_loss < 3:
                 self.arch_optimizer.zero_grad()
                 val_loss.backward()
 
@@ -183,31 +182,47 @@ class DARTSOptimizer(MetaOptimizer):
 
                 self.arch_optimizer.step()
             else:
-                self.min_optimizer.zero_grad()
-                min_loss.backward()
+                del val_loss, logits_val
+                logger.info("reduce alphas with MSE")
+                while True:
+                    logits_val = self.graph(input_val)
+                    min_loss = self.min_loss(logits_val, torch.ones_like(logits_val))
+                    self.min_optimizer.zero_grad()
+                    min_loss.backward()
 
-                if self.grad_clip is not None:
-                    torch.nn.utils.clip_grad_norm_(
-                        self.architectural_weights.parameters(), self.grad_clip
-                    )
+                    if self.grad_clip is not None and epoch > 0:
+                        torch.nn.utils.clip_grad_norm_(
+                            self.architectural_weights.parameters(), self.grad_clip
+                        )
 
-                self.min_optimizer.step()
-                val_loss = min_loss
+                    self.min_optimizer.step()
+                    val_loss = min_loss
+                    # print(val_loss)
+                    if min_loss < 3:
+                        break
 
             # Update op weights
             self.op_optimizer.zero_grad()
             logits_train = self.graph(input_train)
             train_loss = self.loss(logits_train, target_train)
-            loss_lst.append(train_loss.item())
-            if train_loss.item() < 5 * best_model_loss and epoch > 0:  # skipping bad arch selection of previous step
-                train_loss.backward()
-                if self.grad_clip:
-                    torch.nn.utils.clip_grad_norm_(self.graph.parameters(), self.grad_clip)
-                self.op_optimizer.step()
-            else:
-                self.op_optimizer.zero_grad()
-
-        return logits_train, logits_val, train_loss, val_loss, min(loss_lst)
+            # print(train_loss)
+            # loss_lst.append(train_loss.item())
+            # if train_loss.item() < 5 * best_model_loss and epoch > 0:  # skipping bad arch selection of previous step
+            # if train_loss < 3:
+            train_loss.backward()
+            # else:
+            #     del logits_train, train_loss
+            #     logits_train = self.graph(input_train)
+            #     min_loss = self.min_loss(logits_train, torch.ones_like(logits_train))
+            #     min_loss.backward()
+            #     train_loss = min_loss
+            if self.grad_clip:
+                torch.nn.utils.clip_grad_norm_(self.graph.parameters(), self.grad_clip)
+            self.op_optimizer.step()
+            # else:
+            #     self.op_optimizer.zero_grad()
+        print(val_loss, train_loss)
+        return logits_train, logits_val, train_loss, val_loss, best_model_loss
 
     def get_final_architecture(self, eval=False):
         logger.info(
