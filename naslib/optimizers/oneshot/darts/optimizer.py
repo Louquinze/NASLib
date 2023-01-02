@@ -28,8 +28,8 @@ class DARTSOptimizer(MetaOptimizer):
         """
         len_primitives = len(edge.data.op)
         alpha = torch.nn.Parameter(
-            # 1e-3 * torch.randn(size=[len_primitives], requires_grad=True)
-            torch.ones(len_primitives) * 1 / len_primitives
+            1e-3 * torch.randn(size=[len_primitives], requires_grad=True)
+            # torch.ones(len_primitives) * 1 / len_primitives
         )
         edge.data.set("alpha", alpha, shared=True)
 
@@ -109,7 +109,7 @@ class DARTSOptimizer(MetaOptimizer):
 
             self.min_optimizer = self.min_optimizer(
                 self.architectural_weights.parameters(),
-                lr=0.3,
+                lr=self.config.search.arch_learning_rate,
                 betas=(0.9, 0.999),
                 weight_decay=self.config.search.arch_weight_decay * 0,
             )
@@ -192,16 +192,16 @@ class DARTSOptimizer(MetaOptimizer):
                     min_loss = self.min_loss(logits_val, torch.ones_like(logits_val))
                     min_loss.backward()
 
-                    # if self.grad_clip is not None:
-                    #     torch.nn.utils.clip_grad_norm_(
-                    #         self.architectural_weights.parameters(), self.grad_clip
-                    #     )
+                    if self.grad_clip is not None:
+                        torch.nn.utils.clip_grad_norm_(
+                            self.architectural_weights.parameters(), self.grad_clip
+                        )
 
                     self.min_optimizer.step()
                     val_loss = min_loss
-                    if c % 1 == 0:
+                    if c % 100 == 0:
                         logger.info(f"current min_loss: {min_loss}")
-                        c += 1
+                    c += 1
                     if min_loss < 10:
                         break
 
@@ -294,7 +294,7 @@ class DARTSOptimizer(MetaOptimizer):
 
         if self.grad_clip is not None:
             torch.nn.utils.clip_grad_norm_(
-                self.architectural_weights.parameters(), self.grad_clip * 10
+                self.architectural_weights.parameters(), self.grad_clip
             )
         self.optimizer.step()
 

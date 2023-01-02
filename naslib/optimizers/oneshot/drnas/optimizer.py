@@ -131,7 +131,7 @@ class DrNASOptimizer(DARTSOptimizer):
 
                 val_loss = min_loss
                 self.min_optimizer.step()
-                if c % 10 == 0:
+                if c % 100 == 0:
                     logger.info(f"current min_loss: {val_loss}")
                 c += 1
                 if min_loss < 10:
