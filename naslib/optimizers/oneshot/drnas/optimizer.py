@@ -95,7 +95,7 @@ class DrNASOptimizer(DARTSOptimizer):
         logits_val = self.graph(input_val)
         val_loss = self.loss(logits_val, target_val)
 
-        if val_loss < 2:
+        if val_loss < 3:
             if self.reg_type == "kl":
                 val_loss += self._get_kl_reg()
             val_loss.backward()
@@ -134,7 +134,7 @@ class DrNASOptimizer(DARTSOptimizer):
                 if c % 100 == 0:
                     logger.info(f"current min_loss: {val_loss}")
                 c += 1
-                if min_loss < 2:
+                if min_loss < 3:
                     break
 
         # has to be done again, cause val_loss.backward() frees the gradient from sampled alphas
