@@ -176,10 +176,10 @@ class DARTSOptimizer(MetaOptimizer):
                 self.arch_optimizer.zero_grad()
                 val_loss.backward()
 
-                if self.grad_clip is not None:
-                    torch.nn.utils.clip_grad_norm_(
-                        self.architectural_weights.parameters(), self.grad_clip
-                    )
+                # if self.grad_clip is not None:
+                #     torch.nn.utils.clip_grad_norm_(
+                #         self.architectural_weights.parameters(), self.grad_clip
+                #     )
 
                 self.arch_optimizer.step()
             else:
@@ -192,10 +192,10 @@ class DARTSOptimizer(MetaOptimizer):
                     min_loss = self.min_loss(logits_val, torch.ones_like(logits_val))
                     min_loss.backward()
 
-                    if self.grad_clip is not None:
-                        torch.nn.utils.clip_grad_norm_(
-                            self.architectural_weights.parameters(), self.grad_clip
-                        )
+                    # if self.grad_clip is not None:
+                    #     torch.nn.utils.clip_grad_norm_(
+                    #         self.architectural_weights.parameters(), self.grad_clip
+                    #     )
 
                     self.min_optimizer.step()
                     val_loss = min_loss
@@ -292,10 +292,10 @@ class DARTSOptimizer(MetaOptimizer):
         else:
             self._backward_step(model, criterion, input_valid, target_valid)
 
-        if self.grad_clip is not None:
-            torch.nn.utils.clip_grad_norm_(
-                self.architectural_weights.parameters(), self.grad_clip
-            )
+        # if self.grad_clip is not None:
+        #     torch.nn.utils.clip_grad_norm_(
+        #         self.architectural_weights.parameters(), self.grad_clip
+        #     )
         self.optimizer.step()
 
     def _backward_step(self, model, criterion, input_valid, target_valid):
