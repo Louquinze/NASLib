@@ -206,23 +206,30 @@ class DARTSOptimizer(MetaOptimizer):
                         break
 
             # Update op weights
-            self.op_optimizer.zero_grad()
-            logits_train = self.graph(input_train)
-            train_loss = self.loss(logits_train, target_train)
-            # print(train_loss)
-            # loss_lst.append(train_loss.item())
-            # if train_loss.item() < 5 * best_model_loss and epoch > 0:  # skipping bad arch selection of previous step
-            # if train_loss < 3:
-            train_loss.backward()
-            # else:
-            #     del logits_train, train_loss
-            #     logits_train = self.graph(input_train)
-            #     min_loss = self.min_loss(logits_train, torch.ones_like(logits_train))
-            #     min_loss.backward()
-            #     train_loss = min_loss
-            if self.grad_clip:
-                torch.nn.utils.clip_grad_norm_(self.graph.parameters(), self.grad_clip)
-            self.op_optimizer.step()
+            c = 0
+            while True:
+                self.op_optimizer.zero_grad()
+                logits_train = self.graph(input_train)
+                train_loss = self.loss(logits_train, target_train)
+                # print(train_loss)
+                # loss_lst.append(train_loss.item())
+                # if train_loss.item() < 5 * best_model_loss and epoch > 0:  # skipping bad arch selection of previous step
+                # if train_loss < 3:
+                train_loss.backward()
+                # else:
+                #     del logits_train, train_loss
+                #     logits_train = self.graph(input_train)
+                #     min_loss = self.min_loss(logits_train, torch.ones_like(logits_train))
+                #     min_loss.backward()
+                #     train_loss = min_loss
+                if self.grad_clip:
+                    torch.nn.utils.clip_grad_norm_(self.graph.parameters(), self.grad_clip)
+                self.op_optimizer.step()
+                if c % 100 == 0:
+                    logger.info(f"current min_loss model: {train_loss}")
+                c += 1
+                if train_loss < 2:
+                    break
             # else:
             #     self.op_optimizer.zero_grad()
         # print(val_loss, train_loss)
