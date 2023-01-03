@@ -147,27 +147,27 @@ class DrNASOptimizer(DARTSOptimizer):
         )
 
         # Update op weights
-        c = 0
-        while True:
-            self.op_optimizer.zero_grad()
-            logits_train = self.graph(input_train)
-            train_loss = self.loss(logits_train, target_train)
-            train_loss.backward()
-            if self.grad_clip:
-                torch.nn.utils.clip_grad_norm_(self.graph.parameters(), self.grad_clip)
-            self.op_optimizer.step()
-            # in order to properly unparse remove the alphas again
-            self.graph.update_edges(
-                update_func=self.remove_sampled_alphas,
-                scope=self.scope,
-                private_edge_data=False,
-            )
+        # c = 0
+        # while True:
+        self.op_optimizer.zero_grad()
+        logits_train = self.graph(input_train)
+        train_loss = self.loss(logits_train, target_train)
+        train_loss.backward()
+        if self.grad_clip:
+            torch.nn.utils.clip_grad_norm_(self.graph.parameters(), self.grad_clip)
+        self.op_optimizer.step()
+        # in order to properly unparse remove the alphas again
+        self.graph.update_edges(
+            update_func=self.remove_sampled_alphas,
+            scope=self.scope,
+            private_edge_data=False,
+        )
 
-            if c % 100 == 0:
-                logger.info(f"current min_loss model: {train_loss}")
-            c += 1
-            if train_loss < 2 or c == 1000:
-                break
+        # if c % 100 == 0:
+        #     logger.info(f"current min_loss model: {train_loss}")
+        # c += 1
+        # if train_loss < 2 or c == 1000:
+        #     break
 
         return logits_train, logits_val, train_loss, val_loss, best_model_loss
 
