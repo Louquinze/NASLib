@@ -119,7 +119,7 @@ class DrNASOptimizer(DARTSOptimizer):
 
                 self.min_optimizer.zero_grad()
                 logits_val = self.graph(input_val)
-                min_loss = self.min_loss(logits_val, torch.ones_like(logits_val))
+                min_loss = self.loss(logits_val, target_val)
                 if self.reg_type == "kl":
                     min_loss += self._get_kl_reg()
                 min_loss.backward()
