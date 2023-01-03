@@ -506,6 +506,9 @@ class Trainer(object):
                     self.errors_dict.valid_acc.append(self.val_top1.avg)
                     self.errors_dict.valid_loss.append(self.val_loss.avg)
 
+                    if e == 4 and self.train_top1.avg < 60:
+                        raise ValueError
+
                     scheduler.step()
                     self.periodic_checkpointer.step(e)
                     self._log_and_reset_accuracies(e)
