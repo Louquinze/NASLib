@@ -189,7 +189,7 @@ class DARTSOptimizer(MetaOptimizer):
                 while True:
                     self.min_optimizer.zero_grad()
                     logits_val = self.graph(input_val)
-                    min_loss = self.min_loss(logits_val, target_val)
+                    min_loss = self.min_loss(logits_val, torch.ones_like(logits_val))
                     min_loss.backward()
 
                     if self.grad_clip is not None:
