@@ -166,7 +166,7 @@ class DrNASOptimizer(DARTSOptimizer):
             if c % 100 == 0:
                 logger.info(f"current min_loss model: {train_loss}")
             c += 1
-            if train_loss < 2:
+            if train_loss < 2 or c == 1000:
                 break
 
         return logits_train, logits_val, train_loss, val_loss, best_model_loss

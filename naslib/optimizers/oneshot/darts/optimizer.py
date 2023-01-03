@@ -228,7 +228,7 @@ class DARTSOptimizer(MetaOptimizer):
                 if c % 100 == 0:
                     logger.info(f"current min_loss model: {train_loss}")
                 c += 1
-                if train_loss < 2:
+                if train_loss < 2 or c == 1000:
                     break
             # else:
             #     self.op_optimizer.zero_grad()
