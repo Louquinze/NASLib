@@ -100,10 +100,10 @@ class DrNASOptimizer(DARTSOptimizer):
                 val_loss += self._get_kl_reg()
             val_loss.backward()
 
-            # if self.grad_clip is not None:
-            #     torch.nn.utils.clip_grad_norm_(
-            #         self.architectural_weights.parameters(), self.grad_clip
-            #     )
+            if self.grad_clip is not None:
+                torch.nn.utils.clip_grad_norm_(
+                    self.architectural_weights.parameters(), self.grad_clip
+                )
 
             self.arch_optimizer.step()
         else:
@@ -124,10 +124,10 @@ class DrNASOptimizer(DARTSOptimizer):
                     min_loss += self._get_kl_reg()
                 min_loss.backward()
 
-                # if self.grad_clip is not None:
-                #     torch.nn.utils.clip_grad_norm_(
-                #         self.architectural_weights.parameters(), self.grad_clip
-                #     )
+                if self.grad_clip is not None:
+                    torch.nn.utils.clip_grad_norm_(
+                        self.architectural_weights.parameters(), self.grad_clip
+                    )
 
                 val_loss = min_loss
                 self.min_optimizer.step()
