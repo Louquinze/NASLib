@@ -172,7 +172,7 @@ class DARTSOptimizer(MetaOptimizer):
             logits_val = self.graph(input_val)
             val_loss = self.loss(logits_val, target_val)
 
-            if val_loss < 10:
+            if val_loss < 2:
                 self.arch_optimizer.zero_grad()
                 val_loss.backward()
 
@@ -202,7 +202,7 @@ class DARTSOptimizer(MetaOptimizer):
                     if c % 100 == 0:
                         logger.info(f"current min_loss: {min_loss}")
                     c += 1
-                    if min_loss < 10:
+                    if min_loss < 2:
                         break
 
             # Update op weights
