@@ -173,7 +173,7 @@ class DARTSOptimizer(MetaOptimizer):
             while True:
                 logits_val = self.graph(input_val)
                 val_loss = self.loss(logits_val, target_val)
-                self.arch_optimizer.zero_grad()
+                self.min_optimizer.zero_grad()
                 val_loss.backward()
 
                 if self.grad_clip is not None:
@@ -181,9 +181,9 @@ class DARTSOptimizer(MetaOptimizer):
                         self.architectural_weights.parameters(), self.grad_clip
                     )
 
-                self.arch_optimizer.step()
+                self.min_optimizer.step()
 
-                if val_loss < 2.4:
+                if val_loss < 2.6:
                     break
 
             # Update op weights
@@ -197,7 +197,7 @@ class DARTSOptimizer(MetaOptimizer):
                     torch.nn.utils.clip_grad_norm_(self.graph.parameters(), self.grad_clip)
                 self.op_optimizer.step()
 
-                if train_loss < 2.4:
+                if train_loss < 2.6:
                     break
 
         return logits_train, logits_val, train_loss, val_loss, best_model_loss
