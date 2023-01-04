@@ -120,7 +120,7 @@ class GDASOptimizer(DARTSOptimizer):
         while True:
             self.graph.update_edges(
                 update_func=lambda edge: self.sample_alphas(edge, self.tau_max *
-                                                            torch.exp(torch.tensor(epoch) * -10/self.epochs)),
+                                                            torch.exp(torch.tensor(epoch) * -9/self.epochs)),
                 scope=self.scope,
                 private_edge_data=False,
             )
@@ -133,7 +133,7 @@ class GDASOptimizer(DARTSOptimizer):
 
             if self.grad_clip:
                 torch.nn.utils.clip_grad_norm_(
-                    self.architectural_weights.parameters(), self.grad_clip
+                    self.architectural_weights.parameters(), 5
                 )
             self.arch_optimizer.step()
 
