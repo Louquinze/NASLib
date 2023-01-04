@@ -141,7 +141,7 @@ class GDASOptimizer(DARTSOptimizer):
                 break
 
         # Update op weights
-        if val_loss < 2.4:
+        while True:
             self.graph.update_edges(
                 update_func=lambda edge: self.sample_alphas(edge, self.tau_max *
                                                             torch.exp(torch.tensor(epoch) * -9 / self.epochs)),
@@ -156,8 +156,9 @@ class GDASOptimizer(DARTSOptimizer):
             if self.grad_clip:
                 torch.nn.utils.clip_grad_norm_(self.graph.parameters(), self.grad_clip)
             self.op_optimizer.step()
-        else:
-            logits_train, train_loss = logits_val, val_loss
+
+            if train_loss < 2.4:
+                break
 
         # in order to properly unparse remove the alphas again
         self.graph.update_edges(
