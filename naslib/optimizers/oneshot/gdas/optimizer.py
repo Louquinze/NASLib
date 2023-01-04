@@ -67,7 +67,7 @@ class GDASOptimizer(DARTSOptimizer):
         super().new_epoch(epoch)
 
         self.tau_curr += self.tau_step
-        logger.info("tau {}".format(self.tau_max * torch.exp(torch.tensor(epoch) * -20/self.epochs)))
+        logger.info("tau {}".format(self.tau_max * torch.exp(torch.tensor(epoch) * -9/self.epochs)))
 
     @staticmethod
     def sample_alphas(edge, tau):
@@ -132,7 +132,7 @@ class GDASOptimizer(DARTSOptimizer):
 
         if self.grad_clip:
             torch.nn.utils.clip_grad_norm_(
-                self.architectural_weights.parameters(), 5
+                self.architectural_weights.parameters(), self.grad_clip
             )
         self.arch_optimizer.step()
 

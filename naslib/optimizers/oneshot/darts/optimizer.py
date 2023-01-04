@@ -28,8 +28,8 @@ class DARTSOptimizer(MetaOptimizer):
         """
         len_primitives = len(edge.data.op)
         alpha = torch.nn.Parameter(
-            # 1e-3 * torch.randn(size=[len_primitives], requires_grad=True)
-            torch.ones(len_primitives) * 1 / len_primitives
+            1e-3 * torch.randn(size=[len_primitives], requires_grad=True)
+            # torch.ones(len_primitives) * 1 / len_primitives
         )
         edge.data.set("alpha", alpha, shared=True)
 
