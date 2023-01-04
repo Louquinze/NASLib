@@ -137,7 +137,7 @@ class GDASOptimizer(DARTSOptimizer):
                 )
             self.arch_optimizer.step()
 
-            if val_loss < 2.4:
+            if val_loss < 2.4 and val_loss < best_model_loss:
                 break
 
         # Update op weights
@@ -156,7 +156,7 @@ class GDASOptimizer(DARTSOptimizer):
                 torch.nn.utils.clip_grad_norm_(self.graph.parameters(), self.grad_clip)
             self.op_optimizer.step()
 
-            if train_loss < 2.4:
+            if train_loss < 2.4 and val_loss < best_model_loss:
                 break
 
         # in order to properly unparse remove the alphas again
