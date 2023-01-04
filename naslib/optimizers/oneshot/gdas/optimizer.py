@@ -141,13 +141,10 @@ class GDASOptimizer(DARTSOptimizer):
                 break
 
         # Update op weights
-        while True:
-            # has to be done again, cause val_loss.backward() frees the gradient from sampled alphas
-            # TODO: this is not how it is intended because the samples are now different. Another
-            # option would be to set val_loss.backward(retain_graph=True) but that requires more memory.
-
+        if val_loss < 2.4:
             self.graph.update_edges(
-                update_func=lambda edge: self.sample_alphas(edge, torch.tensor([1e-35])),
+                update_func=lambda edge: self.sample_alphas(edge, self.tau_max *
+                                                            torch.exp(torch.tensor(epoch) * -9 / self.epochs)),
                 scope=self.scope,
                 private_edge_data=False,
             )
@@ -159,9 +156,8 @@ class GDASOptimizer(DARTSOptimizer):
             if self.grad_clip:
                 torch.nn.utils.clip_grad_norm_(self.graph.parameters(), self.grad_clip)
             self.op_optimizer.step()
-
-            if train_loss < 2.4:
-                break
+        else:
+            logits_train, train_loss = logits_val, val_loss
 
         # in order to properly unparse remove the alphas again
         self.graph.update_edges(
