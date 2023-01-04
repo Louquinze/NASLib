@@ -143,8 +143,7 @@ class GDASOptimizer(DARTSOptimizer):
         # Update op weights
         while True:
             self.graph.update_edges(
-                update_func=lambda edge: self.sample_alphas(edge, self.tau_max *
-                                                            torch.exp(torch.tensor(epoch) * -9 / self.epochs)),
+                update_func=lambda edge: self.sample_alphas(edge, torch.tensor([1e-35])),
                 scope=self.scope,
                 private_edge_data=False,
             )
