@@ -186,7 +186,7 @@ class Trainer(object):
 
                 # if self.train_loss.avg < best_model_loss:
                 #     best_model_loss = self.train_loss.avg
-                best_model_loss = self.train_loss.avg
+                best_model_loss = self.val_loss.avg
                 logger.info(f"Update best loss to: {best_model_loss}")
 
                 self.errors_dict.train_acc.append(self.train_top1.avg)
