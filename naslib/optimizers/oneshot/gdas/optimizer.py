@@ -138,7 +138,7 @@ class GDASOptimizer(DARTSOptimizer):
                 )
             self.arch_optimizer.step()
 
-            if val_loss < 2.4 and val_loss < best_model_loss or c > 1000:
+            if val_loss < 2.4 and val_loss < best_model_loss or c > 100:
                 break
             c += 1
 
