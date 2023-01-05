@@ -117,6 +117,7 @@ class GDASOptimizer(DARTSOptimizer):
         input_val, target_val = data_val
 
         # sample alphas and set to edges
+        c = 0
         while True:
             self.graph.update_edges(
                 update_func=lambda edge: self.sample_alphas(edge, self.tau_max *
@@ -137,8 +138,9 @@ class GDASOptimizer(DARTSOptimizer):
                 )
             self.arch_optimizer.step()
 
-            if val_loss < 2.4 and val_loss < best_model_loss:
+            if val_loss < 2.4 and val_loss < best_model_loss or c > 1000:
                 break
+            c += 1
 
         # Update op weights
         # while True:
