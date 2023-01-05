@@ -120,7 +120,7 @@ class GDASOptimizer(DARTSOptimizer):
         while True:
             self.graph.update_edges(
                 update_func=lambda edge: self.sample_alphas(edge, self.tau_max *
-                                                            torch.exp(torch.tensor(epoch) * -9/self.epochs)),
+                                                            torch.exp(torch.tensor(epoch) * -15/(self.epochs + 1))),
                 scope=self.scope,
                 private_edge_data=False,
             )
@@ -167,6 +167,10 @@ class GDASOptimizer(DARTSOptimizer):
         )
 
         return logits_train, logits_val, train_loss, val_loss, best_model_loss
+
+    @staticmethod
+    def add_alphas(edge):
+        super().add_alphas(edge)
 
 
 class GDASMixedOp(MixedOp):
