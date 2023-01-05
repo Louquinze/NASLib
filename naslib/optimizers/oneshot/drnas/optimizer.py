@@ -83,6 +83,7 @@ class DrNASOptimizer(DARTSOptimizer):
         input_train, target_train = data_train
         input_val, target_val = data_val
 
+        c = 0
         while True:
             # sample weights (alphas) from the dirichlet distribution (parameterized by beta) and set to edges
             self.graph.update_edges(
@@ -106,8 +107,9 @@ class DrNASOptimizer(DARTSOptimizer):
                 )
 
             self.min_optimizer.step()
-            if val_loss < 2.4 and val_loss < best_model_loss:
+            if val_loss < 2.4 and val_loss < best_model_loss or c > 1000:
                 break
+            c += 1
 
         # Update op weights
         # c = 0
