@@ -83,19 +83,18 @@ class DrNASOptimizer(DARTSOptimizer):
         input_train, target_train = data_train
         input_val, target_val = data_val
 
-        # sample weights (alphas) from the dirichlet distribution (parameterized by beta) and set to edges
-        self.graph.update_edges(
-            update_func=lambda edge: self.sample_alphas(edge),
-            scope=self.scope,
-            private_edge_data=False,
-        )
-
-        # Update architecture weights
-        self.min_optimizer.zero_grad()
-        logits_val = self.graph(input_val)
-        val_loss = self.loss(logits_val, target_val)
-
         while True:
+            # sample weights (alphas) from the dirichlet distribution (parameterized by beta) and set to edges
+            self.graph.update_edges(
+                update_func=lambda edge: self.sample_alphas(edge),
+                scope=self.scope,
+                private_edge_data=False,
+            )
+
+            # Update architecture weights
+            self.min_optimizer.zero_grad()
+            logits_val = self.graph(input_val)
+            val_loss = self.loss(logits_val, target_val)
 
             if self.reg_type == "kl":
                 val_loss += self._get_kl_reg()
