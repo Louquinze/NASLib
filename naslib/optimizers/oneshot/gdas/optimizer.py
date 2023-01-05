@@ -168,9 +168,9 @@ class GDASOptimizer(DARTSOptimizer):
 
         return logits_train, logits_val, train_loss, val_loss, best_model_loss
 
-    @staticmethod
-    def add_alphas(edge):
-        super().add_alphas(edge)
+@staticmethod
+def add_alphas(edge):
+    super().add_alphas(edge)
 
 
 class GDASMixedOp(MixedOp):
