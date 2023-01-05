@@ -106,36 +106,36 @@ class DrNASOptimizer(DARTSOptimizer):
                 )
 
             self.min_optimizer.step()
-            if val_loss < 2.4:
+            if val_loss < 2.4 and val_loss < best_model_loss:
                 break
 
         # Update op weights
         # c = 0
-        while True:
-            # has to be done again, cause val_loss.backward() frees the gradient from sampled alphas
-            # TODO: this is not how it is intended because the samples are now different. Another
-            # option would be to set val_loss.backward(retain_graph=True) but that requires more memory.
-            self.graph.update_edges(
-                update_func=lambda edge: self.sample_alphas(edge),
-                scope=self.scope,
-                private_edge_data=False,
-            )
+        # while True:
+        # has to be done again, cause val_loss.backward() frees the gradient from sampled alphas
+        # TODO: this is not how it is intended because the samples are now different. Another
+        # option would be to set val_loss.backward(retain_graph=True) but that requires more memory.
+        self.graph.update_edges(
+            update_func=lambda edge: self.sample_alphas(edge),
+            scope=self.scope,
+            private_edge_data=False,
+        )
 
-            self.op_optimizer.zero_grad()
-            logits_train = self.graph(input_train)
-            train_loss = self.loss(logits_train, target_train)
-            train_loss.backward()
-            if self.grad_clip:
-                torch.nn.utils.clip_grad_norm_(self.graph.parameters(), self.grad_clip)
-            self.op_optimizer.step()
-            # in order to properly unparse remove the alphas again
-            self.graph.update_edges(
-                update_func=self.remove_sampled_alphas,
-                scope=self.scope,
-                private_edge_data=False,
-            )
-            if val_loss < 2.4:
-                break
+        self.op_optimizer.zero_grad()
+        logits_train = self.graph(input_train)
+        train_loss = self.loss(logits_train, target_train)
+        train_loss.backward()
+        if self.grad_clip:
+            torch.nn.utils.clip_grad_norm_(self.graph.parameters(), self.grad_clip)
+        self.op_optimizer.step()
+        # in order to properly unparse remove the alphas again
+        self.graph.update_edges(
+            update_func=self.remove_sampled_alphas,
+            scope=self.scope,
+            private_edge_data=False,
+        )
+        # if train_loss < 2.4:
+        #     break
 
         return logits_train, logits_val, train_loss, val_loss, best_model_loss
 
