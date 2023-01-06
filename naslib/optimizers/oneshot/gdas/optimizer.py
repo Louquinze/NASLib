@@ -82,30 +82,35 @@ class GDASOptimizer(DARTSOptimizer):
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         arch_parameters = torch.unsqueeze(edge.data.alpha, dim=0)
 
-        while True:
-            gumbels = -torch.empty_like(arch_parameters).exponential_().log()
-            gumbels = gumbels.to(device)
-            tau = tau.to(device)
-            arch_parameters = arch_parameters.to(device)
-            logits = (arch_parameters.log_softmax(dim=1) + gumbels) / tau
-            probs = torch.nn.functional.softmax(logits, dim=1)
-            index = probs.max(-1, keepdim=True)[1]
-            one_h = torch.zeros_like(logits).scatter_(-1, index, 1.0)
-            hardwts = one_h - probs.detach() + probs
-            if (
-                (torch.isinf(gumbels).any())
-                or (torch.isinf(probs).any())
-                or (torch.isnan(probs).any())
-            ):
-                continue
-            else:
-                break
+        if tau is False:
+            edge.data.set("sampled_arch_weight", torch.tensor([1. if i == torch.max(arch_parameters[0]) else 0.
+                                                               for i in arch_parameters[0]]), shared=True)
+            edge.data.set("argmax", torch.argmax(arch_parameters[0]), shared=True)
+        else:
+            while True:
+                gumbels = -torch.empty_like(arch_parameters).exponential_().log()
+                gumbels = gumbels.to(device)
+                tau = tau.to(device)
+                arch_parameters = arch_parameters.to(device)
+                logits = (arch_parameters.log_softmax(dim=1) + gumbels) / tau
+                probs = torch.nn.functional.softmax(logits, dim=1)
+                index = probs.max(-1, keepdim=True)[1]
+                one_h = torch.zeros_like(logits).scatter_(-1, index, 1.0)
+                hardwts = one_h - probs.detach() + probs
+                if (
+                    (torch.isinf(gumbels).any())
+                    or (torch.isinf(probs).any())
+                    or (torch.isnan(probs).any())
+                ):
+                    continue
+                else:
+                    break
 
-        weights = hardwts[0]
-        argmaxs = index[0].item()
+            weights = hardwts[0]
+            argmaxs = index[0].item()
 
-        edge.data.set("sampled_arch_weight", weights, shared=True)
-        edge.data.set("argmax", argmaxs, shared=True)
+            edge.data.set("sampled_arch_weight", weights, shared=True)
+            edge.data.set("argmax", argmaxs, shared=True)
 
     @staticmethod
     def remove_sampled_alphas(edge):
@@ -145,7 +150,7 @@ class GDASOptimizer(DARTSOptimizer):
         # Update op weights
         # while True:
         self.graph.update_edges(
-            update_func=lambda edge: self.sample_alphas(edge, torch.tensor([1e-35])),
+            update_func=lambda edge: self.sample_alphas(edge, False),
             scope=self.scope,
             private_edge_data=False,
         )
