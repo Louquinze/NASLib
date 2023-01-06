@@ -186,7 +186,8 @@ class Trainer(object):
 
                 # if self.train_loss.avg < best_model_loss:
                 #     best_model_loss = self.train_loss.avg
-                best_model_loss = self.val_loss.avg
+                if self.val_loss.avg < best_model_loss:
+                    best_model_loss = self.val_loss.avg
                 logger.info(f"Update best loss to: {best_model_loss}")
 
                 self.errors_dict.train_acc.append(self.train_top1.avg)
@@ -205,6 +206,10 @@ class Trainer(object):
                     train_time,
                 ) = self.optimizer.train_statistics(report_incumbent)
                 train_loss, valid_loss, test_loss = -1, -1, -1
+
+                if train_acc > 20:
+                    logger.info(f"Early stopping")
+                    break
 
                 self.errors_dict.train_acc.append(train_acc)
                 self.errors_dict.train_loss.append(train_loss)
