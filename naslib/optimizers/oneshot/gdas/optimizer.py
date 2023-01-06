@@ -132,7 +132,7 @@ class GDASOptimizer(DARTSOptimizer):
             )
 
             # Update architecture weights
-            self.arch_optimizer.zero_grad()
+            self.min_optimizer.zero_grad()
             logits_val = self.graph(input_val)
             val_loss = self.loss(logits_val, target_val)
             val_loss.backward()
@@ -141,7 +141,16 @@ class GDASOptimizer(DARTSOptimizer):
                 torch.nn.utils.clip_grad_norm_(
                     self.architectural_weights.parameters(), 5
                 )
-            self.arch_optimizer.step()
+            self.min_optimizer.step()
+
+            self.graph.update_edges(
+                update_func=lambda edge: self.sample_alphas(edge, False),
+                scope=self.scope,
+                private_edge_data=False,
+            )
+
+            logits_val = self.graph(input_val)
+            val_loss = self.loss(logits_val, target_val)
 
             if val_loss < 2.4 and val_loss < best_model_loss or c > 100:
                 break
