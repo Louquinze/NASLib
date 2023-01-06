@@ -119,7 +119,10 @@ class Trainer(object):
             )
 
         best_model_loss = float("inf")
+        skip_epochs = False
         for e in range(start_epoch, self.epochs):
+            if skip_epochs:
+                continue
             x = None
 
             start_time = time.time()
@@ -248,7 +251,7 @@ class Trainer(object):
 
             if self.train_top1.avg > 20:
                 logger.info(f"Early stopping")
-
+                self.periodic_checkpointer.step(self.epochs)
                 break
 
             self._log_and_reset_accuracies(e, summary_writer)
