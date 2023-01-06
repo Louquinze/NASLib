@@ -192,6 +192,46 @@ class Trainer(object):
 
                 if self.train_top1.avg > 20:
                     logger.info(f"Early stopping")
+
+                    if self.config.save_arch_weights:
+                        vmax = None
+                        vmin = None
+
+                        for idx in range(len(self.optimizer.architectural_weights)):
+                            x = torch.load(f'{self.config.save_arch_weights_path}/tensor_{idx}.pt')
+                            if vmax is None:
+                                vmax = torch.max(x)
+                            elif torch.max(x) > vmax:
+                                vmax = torch.max(x)
+
+                            if vmin is None:
+                                vmin = torch.min(x)
+                            elif torch.min(x) < vmin:
+                                vmin = torch.min(x)
+
+                        for idx in range(len(self.optimizer.architectural_weights)):
+                            x = torch.load(f'{self.config.save_arch_weights_path}/tensor_{idx}.pt')
+                            x = x.detach().cpu().numpy()
+
+                            g = sns.heatmap(x.T, vmax=vmax.detach().cpu().numpy(), vmin=vmin.detach().cpu().numpy())
+
+                            g.set_xticklabels(g.get_xticklabels(), rotation=60)
+
+                            plt.title(f"arch weights for operation {idx}")
+                            plt.xlabel("steps")
+                            plt.ylabel("alpha values")
+                            plt.savefig(f"{self.config.save_arch_weights_path}/heatmap_{idx}.png")
+                            plt.cla()
+                            plt.clf()
+                            plt.close()
+
+                    self.optimizer.after_training()
+
+                    if summary_writer is not None:
+                        summary_writer.close()
+
+                    logger.info("Training finished")
+
                     break
 
                 self.errors_dict.train_acc.append(self.train_top1.avg)
