@@ -235,8 +235,6 @@ class Trainer(object):
 
             self._log_to_json()
 
-            self._log_and_reset_accuracies(e, summary_writer)
-
             if after_epoch is not None:
                 after_epoch(e)
 
@@ -252,6 +250,8 @@ class Trainer(object):
                 logger.info(f"Early stopping")
 
                 break
+
+            self._log_and_reset_accuracies(e, summary_writer)
 
         if self.config.save_arch_weights:
             vmax = None
