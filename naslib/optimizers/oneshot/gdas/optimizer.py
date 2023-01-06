@@ -157,29 +157,32 @@ class GDASOptimizer(DARTSOptimizer):
 
         # Update op weights
         # while True:
-        self.graph.update_edges(
-            update_func=lambda edge: self.sample_alphas(edge, False),
-            scope=self.scope,
-            private_edge_data=False,
-        )
+        if val_loss < 2.4:
+            self.graph.update_edges(
+                update_func=lambda edge: self.sample_alphas(edge, False),
+                scope=self.scope,
+                private_edge_data=False,
+            )
 
-        self.op_optimizer.zero_grad()
-        logits_train = self.graph(input_train)
-        train_loss = self.loss(logits_train, target_train)
-        train_loss.backward()
-        if self.grad_clip:
-            torch.nn.utils.clip_grad_norm_(self.graph.parameters(), self.grad_clip)
-        self.op_optimizer.step()
+            self.op_optimizer.zero_grad()
+            logits_train = self.graph(input_train)
+            train_loss = self.loss(logits_train, target_train)
+            train_loss.backward()
+            if self.grad_clip:
+                torch.nn.utils.clip_grad_norm_(self.graph.parameters(), self.grad_clip)
+            self.op_optimizer.step()
 
-        # if train_loss < 2.4 and val_loss < best_model_loss:
-        #     break
+            # if train_loss < 2.4 and val_loss < best_model_loss:
+            #     break
 
-        # in order to properly unparse remove the alphas again
-        self.graph.update_edges(
-            update_func=self.remove_sampled_alphas,
-            scope=self.scope,
-            private_edge_data=False,
-        )
+            # in order to properly unparse remove the alphas again
+            self.graph.update_edges(
+                update_func=self.remove_sampled_alphas,
+                scope=self.scope,
+                private_edge_data=False,
+            )
+        else:
+            logits_train, train_loss = logits_val, val_loss
 
         return logits_train, logits_val, train_loss, val_loss, best_model_loss
 
