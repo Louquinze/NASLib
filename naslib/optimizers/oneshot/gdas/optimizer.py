@@ -184,8 +184,8 @@ class GDASOptimizer(DARTSOptimizer):
         while True:
             # if c < 100:
             if c > 1.5 * (epoch+1):
-                if c % 5 == 0:
-                    logger.info(f"arch weights: {arch_weights}")
+                # if c % 5 == 0:
+                #     logger.info(f"arch weights: {arch_weights}")
                 # logger.info(f"reset arch weights")
                 self.graph.update_edges(
                     update_func=lambda edge: self.reset_alphas(edge, arch_weights),
