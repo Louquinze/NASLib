@@ -128,7 +128,6 @@ class Trainer(object):
             self.optimizer.graph.reset_weights(True)
             if best_model_loss_best < best_model_loss[0]:
                 best_model_loss_best = best_model_loss[0]
-            best_model_loss = 2.6
             self.optimizer.op_optimizer = self.optimizer.op_optimizer_func(
                 self.optimizer.graph.parameters(),
                 lr=self.config.search.learning_rate,
@@ -217,7 +216,9 @@ class Trainer(object):
                 logger.info(f"{best_acc} < {self.train_top1.avg} is {self.train_top1.avg > best_acc}")
                 # logger.info(f"{best_arch}")
                 if best_acc < self.train_top1.avg:
-                    logger.info(f"update best arch to:{best_model_loss[0]}\n{best_model_loss[1]}")
+                    logger.info(f"update best arch to:\n"
+                                f"{torch.load(f'{self.config.save}/arch_w.pt')}\n"
+                                f"{best_model_loss[1]}")
                     best_acc = self.train_top1.avg
                     best_model_loss_best = best_model_loss[0]
                     best_arch = best_model_loss[1]
