@@ -227,7 +227,7 @@ class GDASOptimizer(DARTSOptimizer):
                 break
             else:
                 self.graph.update_edges(
-                    update_func=lambda edge: self.sample_alphas(edge, torch.tensor([float(1)]) * (epoch + 1)),
+                    update_func=lambda edge: self.sample_alphas(edge, torch.tensor([float(3)]) * (epoch + 1)),
                     scope=self.scope,
                     private_edge_data=False,
                 )
@@ -237,7 +237,7 @@ class GDASOptimizer(DARTSOptimizer):
                 logits_val = self.graph(input_val)
                 val_loss = self.loss(logits_val, target_val)
                 if c % 100 == 99:
-                    logger.info(f"val_loss, tau_curr: {val_loss}, {torch.tensor([float(1)]) * (epoch + 1)}")
+                    logger.info(f"val_loss, tau_curr: {val_loss}, {torch.tensor([float(3)]) * (epoch + 1)}")
                 val_loss.backward()
 
                 if self.grad_clip:
