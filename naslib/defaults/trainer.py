@@ -128,7 +128,7 @@ class Trainer(object):
             self.optimizer.graph.reset_weights(True)
             if best_model_loss_best < best_model_loss[0]:
                 best_model_loss_best = best_model_loss[0]
-            best_model_loss = float("inf")
+            best_model_loss = 2.6
             self.optimizer.op_optimizer = self.optimizer.op_optimizer_func(
                 self.optimizer.graph.parameters(),
                 lr=self.config.search.learning_rate,
