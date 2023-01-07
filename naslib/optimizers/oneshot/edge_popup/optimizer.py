@@ -126,7 +126,7 @@ class EdgePopUpOptimizer(MetaOptimizer):
             self.arch_optimizer = self.arch_optimizer(
                 self.architectural_weights.parameters(),
                 lr=self.config.search.arch_learning_rate,
-                betas=(0.5, 0.999),
+                betas=(0.9, 0.999),
                 weight_decay=self.config.search.arch_weight_decay,
             )
 
