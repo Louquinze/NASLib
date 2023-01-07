@@ -115,12 +115,6 @@ class GDASOptimizer(DARTSOptimizer):
         # https://github.com/D-X-Y/AutoDL-Projects/blob/befa6bcb00e0a8fcfba447d2a1348202759f58c9/lib/models/cell_searchs/search_cells.py#L51
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         arch_parameters = torch.unsqueeze(edge.data.alpha, dim=0)
-        if tau == 10:
-            # update scheduler etc
-            if edge.data.has("alpha"):
-                edge.data.remove("alpha")
-            edge.data.set("alpha", torch.nn.Parameter(torch.zeros_like(arch_parameters[0])), shared=True)
-
         # todo reset alphas
         if tau is False:
             arch_parameters = torch.softmax(arch_parameters[0], -1)
@@ -168,7 +162,7 @@ class GDASOptimizer(DARTSOptimizer):
         c = 0.1
         while True:
             # if c < 100:
-            if c > 10 * self.epochs / (epoch + 1):
+            if c > 100 / (epoch + 1):
                 logger.info(f"reset arch weights")
 
                 self.graph.update_edges(
@@ -246,7 +240,6 @@ class GDASOptimizer(DARTSOptimizer):
 
         # Update op weights
         # while True:
-        # if val_loss < best_model_loss:
         self.graph.update_edges(
             update_func=lambda edge: self.sample_alphas(edge, False),
             scope=self.scope,
@@ -259,6 +252,7 @@ class GDASOptimizer(DARTSOptimizer):
         train_loss.backward()
         if self.grad_clip:
             torch.nn.utils.clip_grad_norm_(self.graph.parameters(), self.grad_clip)
+        # if val_loss < best_model_loss and val_loss < 2.4:
         self.op_optimizer.step()
 
         # if train_loss < 2.4 and val_loss < best_model_loss:
