@@ -118,15 +118,26 @@ class Trainer(object):
                 self.config
             )
 
-        best_model_loss = float("inf")
-        arch_weights = [i.detach() for i in self.optimizer.architectural_weights.parameters()]
-        best_model_loss = (best_model_loss, arch_weights)
-        skip_epochs = False
+        best_acc = 0
+        best_model_loss_best = float("inf")
+        best_arch = [i.detach() for i in self.optimizer.architectural_weights.parameters()]
+        best_model_loss = float("inf"), best_arch
+
         for e in range(start_epoch, self.epochs):
+            if best_model_loss_best < best_model_loss[0]:
+                best_model_loss_best = best_model_loss[0]
+            best_model_loss = float("inf")
+            self.optimizer.adapt_search_space(self.optimizer.search_space)
+            self.optimizer.before_training()
             x = None
 
             start_time = time.time()
             self.optimizer.new_epoch(e)
+
+            if e == self.epochs - 1:
+                logger.info(f"Prepare last epoch, set best loss to: {best_model_loss_best}")
+                best_model_loss = best_model_loss_best
+            best_model_loss = best_model_loss, best_arch
 
             if self.optimizer.using_step_function:
                 for step, data_train in enumerate(self.train_queue):
@@ -189,9 +200,16 @@ class Trainer(object):
 
                 # if self.train_loss.avg < best_model_loss:
                 #     best_model_loss = self.train_loss.avg
-                if self.val_loss.avg < best_model_loss[0]:
-                    best_model_loss = self.val_loss.avg
-                logger.info(f"Update best loss to: {best_model_loss}")
+                # if self.val_loss.avg < best_model_loss[0]:
+                #     best_model_loss = self.val_loss.avg
+                # logger.info(f"Update best loss to: {best_model_loss}")
+
+                logger.info(f"{best_acc} < {self.train_top1.avg} is {self.train_top1.avg > best_acc}")
+                if self.train_top1.avg < best_acc:
+                    logger.info(f"update best arch to:{best_model_loss[1]}\n{best_model_loss[1]}")
+                    best_acc = self.train_top1.avg
+                    best_model_loss_best = best_model_loss[0]
+                    best_arch = best_model_loss[1]
 
                 self.errors_dict.train_acc.append(self.train_top1.avg)
                 self.errors_dict.train_loss.append(self.train_loss.avg)
@@ -249,10 +267,10 @@ class Trainer(object):
                         f"Merge saved tensors and cached tensors: {self.config.save_arch_weights_path}/tensor_{idx}.pt")
                     torch.save(x[idx], f'{self.config.save_arch_weights_path}/tensor_{idx}.pt')
 
-            # if self.train_top1.avg > 35:
-            #     logger.info(f"Early stopping")
-            #     self.periodic_checkpointer.step(self.epochs)
-            #     break
+            if self.train_top1.avg > 35:
+                logger.info(f"Early stopping")
+                self.periodic_checkpointer.step(self.epochs)
+                break
 
             self._log_and_reset_accuracies(e, summary_writer)
 
