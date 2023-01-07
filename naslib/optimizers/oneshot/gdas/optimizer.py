@@ -160,9 +160,18 @@ class GDASOptimizer(DARTSOptimizer):
 
         if epoch == self.epochs - 1:
             with torch.no_grad():
+                self.graph.update_edges(
+                    update_func=lambda edge: self.sample_alphas(edge, False),
+                    scope=self.scope,
+                    private_edge_data=False,
+                )
                 logits_val = self.graph(input_val)
                 val_loss = self.loss(logits_val, target_val)
-
+                self.graph.update_edges(
+                    update_func=lambda edge: self.sample_alphas(edge, False),
+                    scope=self.scope,
+                    private_edge_data=False,
+                )
                 logits_train = self.graph(input_train)
                 train_loss = self.loss(logits_train, target_train)
             return logits_train, logits_val, train_loss, val_loss, (best_model_loss, arch_weights)
