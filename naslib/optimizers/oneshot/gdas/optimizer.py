@@ -150,31 +150,34 @@ class GDASOptimizer(DARTSOptimizer):
             edge.data.remove("sampled_arch_weight")
 
     def step(self, data_train, data_val, best_model_loss, epoch):
+        best_model_loss, arch_weights = best_model_loss
 
+        self.graph.update_edges(
+            update_func=lambda edge: self.reset_alphas(edge, arch_weights),
+            scope=self.scope,
+            private_edge_data=False,
+        )
+
+        self.architectural_weights = torch.nn.ParameterList()
+        for alpha in self.graph.get_all_edge_data("alpha"):
+            self.architectural_weights.append(alpha)
+
+        self.arch_optimizer = self.arch_optimizer_func(
+            self.architectural_weights.parameters(),
+            lr=self.config.search.arch_learning_rate,
+            betas=(0.5, 0.999),
+            weight_decay=self.config.search.arch_weight_decay * 0,
+        )
+
+        self.min_optimizer = self.min_optimizer_func(
+            self.architectural_weights.parameters(),
+            lr=self.config.search.arch_learning_rate,
+            betas=(0.9, 0.999),
+            weight_decay=self.config.search.arch_weight_decay * 0,
+        )
 
         input_train, target_train = data_train
         input_val, target_val = data_val
-
-        # arch_weights = [i.detach() for i in self.architectural_weights.parameters()]
-        best_model_loss, arch_weights = best_model_loss
-
-        if epoch == self.epochs - 1:
-            with torch.no_grad():
-                self.graph.update_edges(
-                    update_func=lambda edge: self.sample_alphas(edge, False),
-                    scope=self.scope,
-                    private_edge_data=False,
-                )
-                logits_val = self.graph(input_val)
-                val_loss = self.loss(logits_val, target_val)
-                self.graph.update_edges(
-                    update_func=lambda edge: self.sample_alphas(edge, False),
-                    scope=self.scope,
-                    private_edge_data=False,
-                )
-                logits_train = self.graph(input_train)
-                train_loss = self.loss(logits_train, target_train)
-            return logits_train, logits_val, train_loss, val_loss, (best_model_loss, arch_weights)
 
         # sample alphas and set to edges
         c = 0
