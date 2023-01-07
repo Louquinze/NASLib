@@ -150,17 +150,30 @@ class GDASOptimizer(DARTSOptimizer):
             edge.data.remove("sampled_arch_weight")
 
     def step(self, data_train, data_val, best_model_loss, epoch):
+
+
         input_train, target_train = data_train
         input_val, target_val = data_val
 
         # arch_weights = [i.detach() for i in self.architectural_weights.parameters()]
         best_model_loss, arch_weights = best_model_loss
 
+        if epoch == self.epochs - 1:
+            with torch.no_grad():
+                logits_val = self.graph(input_val)
+                val_loss = self.loss(logits_val, target_val)
+
+                logits_train = self.graph(input_train)
+                train_loss = self.loss(logits_train, target_train)
+            return logits_train, logits_val, train_loss, val_loss, (best_model_loss, arch_weights)
+
         # sample alphas and set to edges
-        c = 0.1
+        c = 0
         while True:
             # if c < 100:
             if c > 1.5 * (epoch+1):
+                if c % 5 == 0:
+                    logger.info(f"arch weights: {arch_weights}")
                 # logger.info(f"reset arch weights")
                 self.graph.update_edges(
                     update_func=lambda edge: self.reset_alphas(edge, arch_weights),
@@ -202,7 +215,7 @@ class GDASOptimizer(DARTSOptimizer):
                 break
             else:
                 self.graph.update_edges(
-                    update_func=lambda edge: self.sample_alphas(edge, torch.tensor([float(2)]) * (epoch + 1)),
+                    update_func=lambda edge: self.sample_alphas(edge, torch.tensor([float(1)]) * (epoch + 1)),
                     scope=self.scope,
                     private_edge_data=False,
                 )
@@ -212,7 +225,7 @@ class GDASOptimizer(DARTSOptimizer):
                 logits_val = self.graph(input_val)
                 val_loss = self.loss(logits_val, target_val)
                 if c % 100 == 99:
-                    logger.info(f"val_loss, tau_curr: {val_loss}, {torch.tensor([float(2)]) * (epoch + 1)}")
+                    logger.info(f"val_loss, tau_curr: {val_loss}, {torch.tensor([float(1)]) * (epoch + 1)}")
                 val_loss.backward()
 
                 if self.grad_clip:
