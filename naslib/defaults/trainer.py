@@ -206,7 +206,7 @@ class Trainer(object):
 
                 logger.info(f"{best_acc} < {self.train_top1.avg} is {self.train_top1.avg > best_acc}")
                 if best_acc < self.train_top1.avg:
-                    logger.info(f"update best arch to:{best_model_loss[1]}\n{best_model_loss[1]}")
+                    logger.info(f"update best arch to:{best_model_loss[0]}\n{best_model_loss[1]}")
                     best_acc = self.train_top1.avg
                     best_model_loss_best = best_model_loss[0]
                     best_arch = best_model_loss[1]
