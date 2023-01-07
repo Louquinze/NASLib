@@ -267,10 +267,10 @@ class EdgePopUpOptimizer(MetaOptimizer):
         else:
             self._backward_step(model, criterion, input_valid, target_valid)
 
-        if self.grad_clip is not None:
-            torch.nn.utils.clip_grad_norm_(
-                self.architectural_weights.parameters(), self.grad_clip
-            )
+        # if self.grad_clip is not None:
+        #     torch.nn.utils.clip_grad_norm_(
+        #         self.architectural_weights.parameters(), self.grad_clip
+        #     )
         self.optimizer.step()
 
     def _backward_step(self, model, criterion, input_valid, target_valid):
