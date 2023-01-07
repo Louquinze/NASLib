@@ -128,7 +128,7 @@ class Trainer(object):
             if best_model_loss_best < best_model_loss[0]:
                 best_model_loss_best = best_model_loss[0]
             best_model_loss = 2.55
-            self.optimizer.op_optimizer = self.op_optimizer_func(
+            self.optimizer.op_optimizer = self.optimizer.op_optimizer_func(
                 self.optimizer.graph.parameters(),
                 lr=self.config.search.learning_rate,
                 momentum=self.config.search.momentum,
