@@ -117,6 +117,7 @@ class GDASOptimizer(DARTSOptimizer):
         input_val, target_val = data_val
 
         # sample alphas and set to edges
+        c = 0
         while True:
             self.graph.update_edges(
                 update_func=lambda edge: self.sample_alphas(edge, self.tau_curr),
@@ -135,8 +136,9 @@ class GDASOptimizer(DARTSOptimizer):
                 )
             self.arch_optimizer.step()
 
-            if val_loss < 2.4:
+            if val_loss < 2.4 or c == 500:
                 break
+            c += 1
 
         # has to be done again, cause val_loss.backward() frees the gradient from sampled alphas
         # TODO: this is not how it is intended because the samples are now different. Another
