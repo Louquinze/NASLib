@@ -61,6 +61,9 @@ class DARTSOptimizer(MetaOptimizer):
         self.op_optimizer = op_optimizer
         self.arch_optimizer = arch_optimizer
         self.min_optimizer = arch_optimizer
+        self.arch_optimizer_func = self.arch_optimizer
+        self.min_optimizer_func = self.arch_optimizer
+        self.op_optimizer_func = self.op_optimizer
         self.loss = loss_criteria
         self.min_loss = torch.nn.L1Loss()
         self.grad_clip = self.config.search.grad_clip
@@ -100,21 +103,21 @@ class DARTSOptimizer(MetaOptimizer):
 
         # Init optimizers
         if self.arch_optimizer is not None:
-            self.arch_optimizer = self.arch_optimizer(
+            self.arch_optimizer = self.arch_optimizer_func(
                 self.architectural_weights.parameters(),
                 lr=self.config.search.arch_learning_rate,
                 betas=(0.5, 0.999),
                 weight_decay=self.config.search.arch_weight_decay * 0,
             )
 
-            self.min_optimizer = self.min_optimizer(
+            self.min_optimizer = self.min_optimizer_func(
                 self.architectural_weights.parameters(),
                 lr=self.config.search.arch_learning_rate,
                 betas=(0.9, 0.999),
                 weight_decay=self.config.search.arch_weight_decay * 0,
             )
 
-        self.op_optimizer = self.op_optimizer(
+        self.op_optimizer = self.op_optimizer_func(
             graph.parameters(),
             lr=self.config.search.learning_rate,
             momentum=self.config.search.momentum,
