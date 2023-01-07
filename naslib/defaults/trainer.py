@@ -267,10 +267,10 @@ class Trainer(object):
                         f"Merge saved tensors and cached tensors: {self.config.save_arch_weights_path}/tensor_{idx}.pt")
                     torch.save(x[idx], f'{self.config.save_arch_weights_path}/tensor_{idx}.pt')
 
-            if self.train_top1.avg > 34:
-                logger.info(f"Early stopping")
-                self.periodic_checkpointer.step(self.epochs)
-                break
+            # if self.train_top1.avg > 34:
+            #     logger.info(f"Early stopping")
+            #     self.periodic_checkpointer.step(self.epochs)
+            #     break
 
             self._log_and_reset_accuracies(e, summary_writer)
 
