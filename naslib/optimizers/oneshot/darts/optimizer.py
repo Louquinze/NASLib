@@ -184,7 +184,11 @@ class DARTSOptimizer(MetaOptimizer):
             if edge.data.has("alpha"):
                 primitives = edge.data.op.get_embedded_ops()
                 alphas = edge.data.alpha.detach().cpu()
-                edge.data.set("op", primitives[np.argmax(alphas)])
+                op = primitives[np.argmax(alphas)]
+                if hasattr(primitives[np.argmax(alphas)], "fix_lr_param"):
+                    logger.info(f"{op}:\n{torch.unique(op.beta, return_counts=True)}")
+                    # op.fix_lr_param()
+                edge.data.set("op", op)
 
         graph.update_edges(discretize_ops, scope=self.scope, private_edge_data=True)
         graph.prepare_evaluation()
