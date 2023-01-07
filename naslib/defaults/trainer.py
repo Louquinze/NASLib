@@ -121,14 +121,13 @@ class Trainer(object):
         best_acc = 0
         best_model_loss_best = float("inf")
         best_arch = [i.detach() for i in self.optimizer.architectural_weights.parameters()]
-        best_model_loss = float("inf"), best_arch
+        best_model_loss = 2.56, best_arch
 
         for e in range(start_epoch, self.epochs):
             if best_model_loss_best < best_model_loss[0]:
                 best_model_loss_best = best_model_loss[0]
-            best_model_loss = 2.55
-            self.optimizer.adapt_search_space(self.optimizer.search_space)
-            self.optimizer.before_training()
+            # self.optimizer.adapt_search_space(self.optimizer.search_space)
+            # self.optimizer.before_training()
             x = None
 
             start_time = time.time()
