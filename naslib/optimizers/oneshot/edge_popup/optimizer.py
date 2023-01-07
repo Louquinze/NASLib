@@ -1,5 +1,4 @@
 import numpy as np
-import time
 import torch
 import torch.nn as nn
 import torch.autograd as autograd
@@ -78,9 +77,7 @@ class EdgePopUpOptimizer(MetaOptimizer):
     ):
         """
         Initialize a new instance.
-
         Args:
-
         """
         super(EdgePopUpOptimizer, self).__init__()
 
@@ -129,7 +126,7 @@ class EdgePopUpOptimizer(MetaOptimizer):
             self.arch_optimizer = self.arch_optimizer(
                 self.architectural_weights.parameters(),
                 lr=self.config.search.arch_learning_rate,
-                betas=(0.9, 0.999),
+                betas=(0.5, 0.999),
                 weight_decay=self.config.search.arch_weight_decay,
             )
 
@@ -176,7 +173,7 @@ class EdgePopUpOptimizer(MetaOptimizer):
         )
         super().new_epoch(epoch)
 
-    def step(self, data_train, data_val, best_model_loss, epoch):
+    def step(self, data_train, data_val):
         input_train, target_train = data_train
         input_val, target_val = data_val
 
@@ -190,11 +187,6 @@ class EdgePopUpOptimizer(MetaOptimizer):
             self.arch_optimizer.zero_grad()
             logits_val = self.graph(input_val)
             val_loss = self.loss(logits_val, target_val)
-            if self.grad_clip:
-                torch.nn.utils.clip_grad_norm_(
-                    self.architectural_weights.parameters(), self.grad_clip
-                )
-
             val_loss.backward()
 
             self.arch_optimizer.step()
@@ -208,9 +200,9 @@ class EdgePopUpOptimizer(MetaOptimizer):
                 torch.nn.utils.clip_grad_norm_(self.graph.parameters(), self.grad_clip)
             self.op_optimizer.step()
 
-        return logits_train, logits_val, train_loss, val_loss, best_model_loss
+        return logits_train, logits_val, train_loss, val_loss
 
-    def get_final_architecture(self, eval=False):
+    def get_final_architecture(self):
         logger.info(
             "Arch weights before discretization: {}".format(
                 [a for a in self.architectural_weights]
@@ -275,10 +267,10 @@ class EdgePopUpOptimizer(MetaOptimizer):
         else:
             self._backward_step(model, criterion, input_valid, target_valid)
 
-        # if self.grad_clip is not None:
-        #     torch.nn.utils.clip_grad_norm_(
-        #         self.architectural_weights.parameters(), self.grad_clip
-        #     )
+        if self.grad_clip is not None:
+            torch.nn.utils.clip_grad_norm_(
+                self.architectural_weights.parameters(), self.grad_clip
+            )
         self.optimizer.step()
 
     def _backward_step(self, model, criterion, input_valid, target_valid):
@@ -410,4 +402,3 @@ class EdgePopUpMixedOp(MixedOp):
         masked_weights = GetSubnet.apply(weights, sparsity)
         # applying edge_popup to the alphas
         return sum(masked_w * op(x, None) for masked_w, op in zip(masked_weights, self.primitives))
-
