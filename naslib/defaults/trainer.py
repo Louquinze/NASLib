@@ -401,7 +401,7 @@ class Trainer(object):
 
                     scheduler.step()
                     self.periodic_checkpointer.step(e)
-                    self._log_and_reset_accuracies(e)
+                    top1 = self._log_and_reset_accuracies(e)
 
                     if e == 4 and top1 < 60:
                         break
