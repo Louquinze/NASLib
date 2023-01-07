@@ -395,10 +395,12 @@ class Trainer(object):
                             # just log the validation accuracy
                             with torch.no_grad():
                                 logits_valid = best_arch(input_valid)
-                                self._store_accuracies(
+                                top1 = self._store_accuracies(
                                     logits_valid, target_valid, "val"
                                 )
 
+                            if e == 4 and top1 < 60:
+                                break
                     scheduler.step()
                     self.periodic_checkpointer.step(e)
                     self._log_and_reset_accuracies(e)
@@ -524,6 +526,7 @@ class Trainer(object):
             self.val_top5.update(prec5.data.item(), n)
         else:
             raise ValueError("Unknown split: {}. Expected either 'train' or 'val'")
+        return prec1
 
     def _prepare_dataloaders(self, config, mode="train"):
         """
