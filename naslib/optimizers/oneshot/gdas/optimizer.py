@@ -117,22 +117,26 @@ class GDASOptimizer(DARTSOptimizer):
         input_val, target_val = data_val
 
         # sample alphas and set to edges
-        self.graph.update_edges(
-            update_func=lambda edge: self.sample_alphas(edge, self.tau_curr),
-            scope=self.scope,
-            private_edge_data=False,
-        )
-
-        # Update architecture weights
-        self.arch_optimizer.zero_grad()
-        logits_val = self.graph(input_val)
-        val_loss = self.loss(logits_val, target_val)
-        val_loss.backward()
-        if self.grad_clip:
-            torch.nn.utils.clip_grad_norm_(
-                self.architectural_weights.parameters(), self.grad_clip
+        while True:
+            self.graph.update_edges(
+                update_func=lambda edge: self.sample_alphas(edge, self.tau_curr),
+                scope=self.scope,
+                private_edge_data=False,
             )
-        self.arch_optimizer.step()
+
+            # Update architecture weights
+            self.arch_optimizer.zero_grad()
+            logits_val = self.graph(input_val)
+            val_loss = self.loss(logits_val, target_val)
+            val_loss.backward()
+            if self.grad_clip:
+                torch.nn.utils.clip_grad_norm_(
+                    self.architectural_weights.parameters(), self.grad_clip
+                )
+            self.arch_optimizer.step()
+
+            if val_loss < 2.4:
+                break
 
         # has to be done again, cause val_loss.backward() frees the gradient from sampled alphas
         # TODO: this is not how it is intended because the samples are now different. Another
