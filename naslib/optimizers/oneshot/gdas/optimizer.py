@@ -234,10 +234,12 @@ class GDASOptimizer(DARTSOptimizer):
                     logits_val = self.graph(input_val)
                     val_loss = self.loss(logits_val, target_val)
 
-                if val_loss < 2.4 and val_loss < best_model_loss:
+                if val_loss < best_model_loss * 1.5:
                     break
                 c += 1
 
+        if val_loss < best_model_loss:
+            best_model_loss = val_loss
         # Update op weights
         # while True:
         self.graph.update_edges(
