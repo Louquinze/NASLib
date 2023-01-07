@@ -126,7 +126,7 @@ class Trainer(object):
         for e in range(start_epoch, self.epochs):
             if best_model_loss_best < best_model_loss[0]:
                 best_model_loss_best = best_model_loss[0]
-            best_model_loss = 2.3
+            best_model_loss = 2.55
             self.optimizer.adapt_search_space(self.optimizer.search_space)
             self.optimizer.before_training()
             x = None
