@@ -497,6 +497,8 @@ class Trainer(object):
             )
         )
 
+        top1 = self.train_top1.avg
+
         if writer is not None:
             writer.add_scalar('Train accuracy (top 1)', self.train_top1.avg, epoch)
             writer.add_scalar('Train accuracy (top 5)', self.train_top5.avg, epoch)
@@ -512,7 +514,7 @@ class Trainer(object):
         self.val_top5.reset()
         self.val_loss.reset()
 
-        return self.train_top1.avg
+        return top1
 
     def _store_accuracies(self, logits, target, split):
         """Update the accuracy counters"""
