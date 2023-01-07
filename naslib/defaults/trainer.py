@@ -399,11 +399,12 @@ class Trainer(object):
                                     logits_valid, target_valid, "val"
                                 )
 
-                            if e == 4 and top1 < 60:
-                                break
                     scheduler.step()
                     self.periodic_checkpointer.step(e)
                     self._log_and_reset_accuracies(e)
+
+                    if e == 4 and top1 < 60:
+                        break
 
             # Disable drop path
             best_arch.update_edges(
@@ -510,6 +511,8 @@ class Trainer(object):
         self.val_top1.reset()
         self.val_top5.reset()
         self.val_loss.reset()
+
+        return self.train_top1.avg
 
     def _store_accuracies(self, logits, target, split):
         """Update the accuracy counters"""
