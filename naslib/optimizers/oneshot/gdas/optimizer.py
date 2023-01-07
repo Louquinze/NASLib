@@ -247,7 +247,7 @@ class GDASOptimizer(DARTSOptimizer):
         logits_train = self.graph(input_train)
         train_loss = self.loss(logits_train, target_train)
 
-        if val_loss < best_model_loss and train_loss < best_model_loss:
+        if val_loss < best_model_loss * 0.9 and train_loss < best_model_loss * 0.9:
             arch_weights = [i.detach() for i in self.architectural_weights.parameters()]
             logger.info(f"set best arch: {val_loss}, {train_loss}")
             best_model_loss = val_loss
