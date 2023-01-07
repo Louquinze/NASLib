@@ -119,10 +119,10 @@ class Trainer(object):
             )
 
         best_model_loss = float("inf")
+        arch_weights = [i.detach() for i in self.optimizer.architectural_weights.parameters()]
+        best_model_loss = (best_model_loss, arch_weights)
         skip_epochs = False
         for e in range(start_epoch, self.epochs):
-            if skip_epochs:
-                continue
             x = None
 
             start_time = time.time()
@@ -189,8 +189,8 @@ class Trainer(object):
 
                 # if self.train_loss.avg < best_model_loss:
                 #     best_model_loss = self.train_loss.avg
-                # if self.val_loss.avg < best_model_loss:
-                #     best_model_loss = self.val_loss.avg
+                if self.val_loss.avg < best_model_loss[0]:
+                    best_model_loss = self.val_loss.avg
                 logger.info(f"Update best loss to: {best_model_loss}")
 
                 self.errors_dict.train_acc.append(self.train_top1.avg)
@@ -249,10 +249,10 @@ class Trainer(object):
                         f"Merge saved tensors and cached tensors: {self.config.save_arch_weights_path}/tensor_{idx}.pt")
                     torch.save(x[idx], f'{self.config.save_arch_weights_path}/tensor_{idx}.pt')
 
-            if self.train_top1.avg > 30:
-                logger.info(f"Early stopping")
-                self.periodic_checkpointer.step(self.epochs)
-                break
+            # if self.train_top1.avg > 35:
+            #     logger.info(f"Early stopping")
+            #     self.periodic_checkpointer.step(self.epochs)
+            #     break
 
             self._log_and_reset_accuracies(e, summary_writer)
 

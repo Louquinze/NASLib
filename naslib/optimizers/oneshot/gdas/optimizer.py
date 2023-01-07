@@ -156,7 +156,8 @@ class GDASOptimizer(DARTSOptimizer):
         input_train, target_train = data_train
         input_val, target_val = data_val
 
-        arch_weights = [i.detach() for i in self.architectural_weights.parameters()]
+        # arch_weights = [i.detach() for i in self.architectural_weights.parameters()]
+        best_model_loss, arch_weights = best_model_loss
 
         # sample alphas and set to edges
         c = 0.1
@@ -234,11 +235,13 @@ class GDASOptimizer(DARTSOptimizer):
                     logits_val = self.graph(input_val)
                     val_loss = self.loss(logits_val, target_val)
 
-                if val_loss < best_model_loss * 1.5:
+                if val_loss < best_model_loss * 1.25:
                     break
                 c += 1
 
         if val_loss < best_model_loss:
+            arch_weights = [i.detach() for i in self.architectural_weights.parameters()]
+            logger.info(f"set best arch")
             best_model_loss = val_loss
         # Update op weights
         # while True:
@@ -269,7 +272,7 @@ class GDASOptimizer(DARTSOptimizer):
         # else:
         #     logits_train, train_loss = logits_val, val_loss
 
-        return logits_train, logits_val, train_loss, val_loss, best_model_loss
+        return logits_train, logits_val, train_loss, val_loss, (best_model_loss, arch_weights)
 
 @staticmethod
 def add_alphas(edge):
