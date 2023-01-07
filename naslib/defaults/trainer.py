@@ -144,7 +144,7 @@ class Trainer(object):
             if e == self.epochs - 1:
                 logger.info(f"Prepare last epoch, set best loss to: {best_model_loss_best}")
                 best_model_loss = best_model_loss_best
-            best_model_loss = best_model_loss, best_arch
+            best_model_loss = best_model_loss, best_arch.copy()
 
             if self.optimizer.using_step_function:
                 for step, data_train in enumerate(self.train_queue):
