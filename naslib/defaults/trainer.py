@@ -8,10 +8,6 @@ import copy
 import torch
 import numpy as np
 
-import matplotlib.pyplot as plt
-import seaborn as sns
-from pathlib import Path
-
 from fvcore.common.checkpoint import PeriodicCheckpointer
 
 from naslib.search_spaces.core.query_metrics import Metric
@@ -30,7 +26,6 @@ class Trainer(object):
     Default implementation that handles dataloading and preparing batches, the
     train loop, gathering statistics, checkpointing and doing the final
     final evaluation.
-
     If this does not fulfil your needs free do subclass it and implement your
     required logic.
     """
@@ -38,7 +33,6 @@ class Trainer(object):
     def __init__(self, optimizer, config, lightweight_output=False):
         """
         Initializes the trainer.
-
         Args:
             optimizer: A NASLib optimizer
             config (AttrDict): The configuration loaded from a yaml file, e.g
@@ -80,16 +74,11 @@ class Trainer(object):
     def search(self, resume_from="", summary_writer=None, after_epoch: Callable[[int], None]=None, report_incumbent=True):
         """
         Start the architecture search.
-
         Generates a json file with training statistics.
-
         Args:
             resume_from (str): Checkpoint file to resume from. If not given then
                 train from scratch.
         """
-        if self.config.save_arch_weights:
-            Path(self.config.save_arch_weights_path).mkdir(parents=True, exist_ok=False)
-
         logger.info("Start training")
 
         np.random.seed(self.config.search.seed)
@@ -102,11 +91,6 @@ class Trainer(object):
                 self.optimizer.op_optimizer, self.config
             )
 
-            # Todo check min_learning rate
-            # self.arch_scheduler = self.build_search_scheduler(
-            #     self.optimizer.arch_optimizer, self.config
-            # )
-
             start_epoch = self._setup_checkpointers(
                 resume_from, period=checkpoint_freq, scheduler=self.scheduler
             )
@@ -118,55 +102,13 @@ class Trainer(object):
                 self.config
             )
 
-        best_acc = 0
-        best_model_loss_best = float("inf")
-        best_arch = [i.detach() for i in self.optimizer.architectural_weights.parameters()]
-        torch.save(best_arch, f'{self.config.save}/arch_w.pt')
-        best_model_loss = float("inf"), best_arch
-
         for e in range(start_epoch, self.epochs):
-            self.optimizer.graph.reset_weights(True)
-            if best_model_loss_best < best_model_loss[0]:
-                best_model_loss_best = best_model_loss[0]
-            best_model_loss = float("inf")
-            self.optimizer.op_optimizer = self.optimizer.op_optimizer_func(
-                self.optimizer.graph.parameters(),
-                lr=self.config.search.learning_rate,
-                momentum=self.config.search.momentum,
-                weight_decay=self.config.search.weight_decay,
-            )
-            self.optimizer.graph.train()
-
-            x = None
 
             start_time = time.time()
             self.optimizer.new_epoch(e)
 
-            if e == self.epochs - 1:
-                logger.info(f"Prepare last epoch, set best loss to: {best_model_loss_best}")
-                best_model_loss = best_model_loss_best
-            best_model_loss = best_model_loss, torch.load(f'{self.config.save}/arch_w.pt')
-            # y = torch.load(f'{self.config.save}/arch_w.pt')
-            torch.save(best_model_loss[1], f'{self.config.save}/arch_w.pt')
-
             if self.optimizer.using_step_function:
                 for step, data_train in enumerate(self.train_queue):
-                    if self.config.save_arch_weights:
-                        if x is None:
-                            x = []
-                            for idx, i in enumerate(self.optimizer.architectural_weights):
-                                x.append(torch.unsqueeze(i.detach(), dim=0))
-
-                            if not Path(
-                                    f'{self.config.save_arch_weights_path}/tensor_0.pt').exists():  # todo sketchy fix
-                                for idx, x_i in enumerate(x):
-                                    logger.info(
-                                        f"Create tensor file: {self.config.save_arch_weights_path}/tensor_{idx}.pt")
-                                    torch.save(x[idx], f'{self.config.save_arch_weights_path}/tensor_{idx}.pt')
-                        else:
-                            for idx, i in enumerate(self.optimizer.architectural_weights):
-                                x[idx] = torch.cat((x[idx], torch.unsqueeze(i, dim=0)), dim=0)
-
                     data_train = (
                         data_train[0].to(self.device),
                         data_train[1].to(self.device, non_blocking=True),
@@ -177,9 +119,7 @@ class Trainer(object):
                         data_val[1].to(self.device, non_blocking=True),
                     )
 
-                    stats = self.optimizer.step(data_train, data_val, best_model_loss, e)
-                    stats, best_model_loss = stats[:-1], stats[-1]
-
+                    stats = self.optimizer.step(data_train, data_val)
                     logits_train, logits_val, train_loss, val_loss = stats
 
                     self._store_accuracies(logits_train, data_train[1], "train")
@@ -188,7 +128,7 @@ class Trainer(object):
                     log_every_n_seconds(
                         logging.INFO,
                         "Epoch {}-{}, Train loss: {:.5f}, validation loss: {:.5f}, learning rate: {}".format(
-                            e, step, train_loss, val_loss, self.scheduler.get_last_lr(),
+                            e, step, train_loss, val_loss, self.scheduler.get_last_lr()
                         ),
                         n=5,
                     )
@@ -204,26 +144,8 @@ class Trainer(object):
                     self.val_loss.update(float(val_loss.detach().cpu()))
 
                 self.scheduler.step()
-                # self.arch_scheduler.step()
 
                 end_time = time.time()
-
-                # if self.train_loss.avg < best_model_loss:
-                #     best_model_loss = self.train_loss.avg
-                # if self.val_loss.avg < best_model_loss[0]:
-                #     best_model_loss = self.val_loss.avg
-                # logger.info(f"Update best loss to: {best_model_loss}")
-
-                logger.info(f"{best_acc} < {self.train_top1.avg} is {self.train_top1.avg > best_acc}")
-                # logger.info(f"{best_arch}")
-                if best_acc < self.train_top1.avg:
-                    logger.info(f"update best arch to:\n"
-                                f"{torch.load(f'{self.config.save}/arch_w.pt')}\n"
-                                f"{best_model_loss[1]}")
-                    best_acc = self.train_top1.avg
-                    best_model_loss_best = best_model_loss[0]
-                    best_arch = best_model_loss[1]
-                    torch.save(best_model_loss[1], f'{self.config.save}/arch_w.pt')
 
                 self.errors_dict.train_acc.append(self.train_top1.avg)
                 self.errors_dict.train_loss.append(self.train_loss.avg)
@@ -253,10 +175,7 @@ class Trainer(object):
                 self.train_top1.avg = train_acc
                 self.val_top1.avg = valid_acc
 
-            try:
-                self.periodic_checkpointer.step(e)
-            except Exception as ex:
-                print(ex)
+            self.periodic_checkpointer.step(e)
 
             anytime_results = self.optimizer.test_statistics()
             if anytime_results:
@@ -270,55 +189,10 @@ class Trainer(object):
 
             self._log_to_json()
 
-            if after_epoch is not None:
-                after_epoch(e)
-
-            if self.config.save_arch_weights:
-                for idx in range(len(self.optimizer.architectural_weights)):
-                    y = torch.load(f'{self.config.save_arch_weights_path}/tensor_{idx}.pt')
-                    x[idx] = torch.cat((y, x[idx]), dim=0)
-                    logger.info(
-                        f"Merge saved tensors and cached tensors: {self.config.save_arch_weights_path}/tensor_{idx}.pt")
-                    torch.save(x[idx], f'{self.config.save_arch_weights_path}/tensor_{idx}.pt')
-
-            # if self.train_top1.avg > 34:
-            #     logger.info(f"Early stopping")
-            #     self.periodic_checkpointer.step(self.epochs)
-            #     break
-
             self._log_and_reset_accuracies(e, summary_writer)
 
-        if self.config.save_arch_weights:
-            vmax = None
-            vmin = None
-
-            for idx in range(len(self.optimizer.architectural_weights)):
-                x = torch.load(f'{self.config.save_arch_weights_path}/tensor_{idx}.pt')
-                if vmax is None:
-                    vmax = torch.max(x)
-                elif torch.max(x) > vmax:
-                    vmax = torch.max(x)
-
-                if vmin is None:
-                    vmin = torch.min(x)
-                elif torch.min(x) < vmin:
-                    vmin = torch.min(x)
-
-            for idx in range(len(self.optimizer.architectural_weights)):
-                x = torch.load(f'{self.config.save_arch_weights_path}/tensor_{idx}.pt')
-                x = x.detach().cpu().numpy()
-
-                g = sns.heatmap(x.T, vmax=vmax.detach().cpu().numpy(), vmin=vmin.detach().cpu().numpy())
-
-                g.set_xticklabels(g.get_xticklabels(), rotation=60)
-
-                plt.title(f"arch weights for operation {idx}")
-                plt.xlabel("steps")
-                plt.ylabel("alpha values")
-                plt.savefig(f"{self.config.save_arch_weights_path}/heatmap_{idx}.png")
-                plt.cla()
-                plt.clf()
-                plt.close()
+            if after_epoch is not None:
+                after_epoch(e)
 
         self.optimizer.after_training()
 
@@ -330,9 +204,7 @@ class Trainer(object):
     def evaluate_oneshot(self, resume_from="", dataloader=None):
         """
         Evaluate the one-shot model on the specified dataset.
-
         Generates a json file with training statistics.
-
         Args:
             resume_from (str): Checkpoint file to resume from. If not given then
                 evaluate with the current one-shot weights.
@@ -382,10 +254,8 @@ class Trainer(object):
     ):
         """
         Evaluate the final architecture as given from the optimizer.
-
         If the search space has an interface to a benchmark then query that.
         Otherwise train as defined in the config.
-
         Args:
             retrain (bool)      : Reset the weights from the architecure search
             search_model (str)  : Path to checkpoint file that was created during search. If not provided,
@@ -405,7 +275,7 @@ class Trainer(object):
                 )
             self._setup_checkpointers(search_model)  # required to load the architecture
 
-            best_arch = self.optimizer.get_final_architecture(eval=True)
+            best_arch = self.optimizer.get_final_architecture()
         logger.info("Final architecture:\n" + best_arch.modules_str())
 
         if best_arch.QUERYABLE:
@@ -418,20 +288,6 @@ class Trainer(object):
         else:
             best_arch.to(self.device)
             if retrain:
-                self.errors_dict = utils.AttrDict(
-                    {
-                        "train_acc": [],
-                        "train_loss": [],
-                        "valid_acc": [],
-                        "valid_loss": [],
-                        "test_acc": [],
-                        "test_loss": [],
-                        "runtime": [],
-                        "train_time": [],
-                        "arch_eval": [],
-                    }
-                )
-
                 logger.info("Starting retraining from scratch")
                 best_arch.reset_weights(inplace=True)
 
@@ -543,19 +399,9 @@ class Trainer(object):
                                     logits_valid, target_valid, "val"
                                 )
 
-                    self.errors_dict.train_acc.append(self.train_top1.avg)
-                    self.errors_dict.train_loss.append(self.train_loss.avg)
-                    self.errors_dict.valid_acc.append(self.val_top1.avg)
-                    self.errors_dict.valid_loss.append(self.val_loss.avg)
-
-                    if e == 4 and self.train_top1.avg < 60:
-                        raise ValueError
-
                     scheduler.step()
                     self.periodic_checkpointer.step(e)
                     self._log_and_reset_accuracies(e)
-
-                self._log_to_json(extension="_evaluation")
 
             # Disable drop path
             best_arch.update_edges(
@@ -683,7 +529,6 @@ class Trainer(object):
         """
         Prepare train, validation, and test dataloaders with the splits defined
         in the config.
-
         Args:
             config (AttrDict): config from config file.
         """
@@ -701,7 +546,6 @@ class Trainer(object):
         Sets up a periodic chechkpointer which can be used to save checkpoints
         at every epoch. It will call optimizer's `get_checkpointables()` as objects
         to store.
-
         Args:
             resume_from (str): A checkpoint file to resume the search or evaluation from.
             search (bool): Whether search or evaluation phase is checkpointed. This is required
@@ -735,18 +579,18 @@ class Trainer(object):
                 return checkpoint.get("iteration", -1) + 1
         return 0
 
-    def _log_to_json(self, extension=""):
+    def _log_to_json(self):
         """log training statistics to json file"""
         if not os.path.exists(self.config.save):
             os.makedirs(self.config.save)
         if not self.lightweight_output:
             with codecs.open(
-                os.path.join(self.config.save, f"errors{extension}.json"), "w", encoding="utf-8"
+                os.path.join(self.config.save, "errors.json"), "w", encoding="utf-8"
             ) as file:
                 json.dump(self.errors_dict, file, separators=(",", ":"))
         else:
             with codecs.open(
-                os.path.join(self.config.save, f"errors{extension}.json"), "w", encoding="utf-8"
+                os.path.join(self.config.save, "errors.json"), "w", encoding="utf-8"
             ) as file:
                 lightweight_dict = copy.deepcopy(self.errors_dict)
                 for key in ["arch_eval", "train_loss", "valid_loss", "test_loss"]:
