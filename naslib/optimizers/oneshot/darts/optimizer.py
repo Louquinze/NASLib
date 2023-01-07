@@ -148,6 +148,8 @@ class DARTSOptimizer(MetaOptimizer):
         """
         Just log the architecture weights.
         """
+        self.architectural_weights = self.architectural_weights[:6]
+
         alpha_str = [
             ", ".join(["{:+.06f}".format(x) for x in a])
             + ", {}".format(np.argmax(a.detach().cpu().numpy()))
