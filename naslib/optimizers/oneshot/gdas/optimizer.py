@@ -296,6 +296,30 @@ class GDASOptimizer(DARTSOptimizer):
         # else:
         #     logits_train, train_loss = logits_val, val_loss
 
+        self.graph.update_edges(
+            update_func=lambda edge: self.reset_alphas(edge, arch_weights),
+            scope=self.scope,
+            private_edge_data=False,
+        )
+
+        self.architectural_weights = torch.nn.ParameterList()
+        for alpha in self.graph.get_all_edge_data("alpha"):
+            self.architectural_weights.append(alpha)
+
+        self.arch_optimizer = self.arch_optimizer_func(
+            self.architectural_weights.parameters(),
+            lr=self.config.search.arch_learning_rate,
+            betas=(0.5, 0.999),
+            weight_decay=self.config.search.arch_weight_decay * 0,
+        )
+
+        self.min_optimizer = self.min_optimizer_func(
+            self.architectural_weights.parameters(),
+            lr=self.config.search.arch_learning_rate,
+            betas=(0.9, 0.999),
+            weight_decay=self.config.search.arch_weight_decay * 0,
+        )
+
         return logits_train, logits_val, train_loss, val_loss, (best_model_loss, arch_weights)
 
 @staticmethod
