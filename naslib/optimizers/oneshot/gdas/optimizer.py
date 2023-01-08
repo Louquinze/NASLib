@@ -35,7 +35,7 @@ class GDASOptimizer(DARTSOptimizer):
         super().__init__(config, op_optimizer, arch_optimizer, loss_criteria)
 
         self.epochs = config.search.epochs
-        self.tau_max = torch.Tensor([config.search.tau_max])
+        self.tau_max = config.search.tau_max
         self.tau_min = config.search.tau_min
 
         # Linear tau schedule
@@ -67,38 +67,7 @@ class GDASOptimizer(DARTSOptimizer):
         super().new_epoch(epoch)
 
         self.tau_curr += self.tau_step
-        logger.info("tau {}".format(self.tau_max))
-
-    @staticmethod
-    def reset_alphas(edge, weights):
-        # sampled_arch_weight = torch.nn.functional.gumbel_softmax(
-        #     edge.data.alpha, tau=float(tau), hard=True
-        # )
-        # edge.data.set('sampled_arch_weight', sampled_arch_weight, shared=True)
-
-        # from gdas repo
-        # https://github.com/D-X-Y/AutoDL-Projects/blob/befa6bcb00e0a8fcfba447d2a1348202759f58c9/lib/models/cell_searchs/search_model_gdas.py#L88
-        # https://github.com/D-X-Y/AutoDL-Projects/blob/befa6bcb00e0a8fcfba447d2a1348202759f58c9/lib/models/cell_searchs/search_cells.py#L51
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        if edge.head == 1 and edge.tail == 2:
-            weight_idx = 0
-        elif edge.head == 1 and edge.tail == 3:
-            weight_idx = 1
-        elif edge.head == 1 and edge.tail == 8:
-            weight_idx = 2
-        elif edge.head == 4 and edge.tail == 5:
-            weight_idx = 3
-        elif edge.head == 6 and edge.tail == 7:
-            weight_idx = 4
-        elif edge.head == 9 and edge.tail == 10:
-            weight_idx = 5
-        else:
-            raise ValueError
-
-        if edge.data.has("alpha"):
-            edge.data.remove("alpha")
-        edge.data.set("alpha", torch.nn.Parameter(weights[weight_idx]), shared=True)
-
+        logger.info("tau {}".format(self.tau_curr))
 
     @staticmethod
     def sample_alphas(edge, tau):
@@ -112,180 +81,76 @@ class GDASOptimizer(DARTSOptimizer):
         # https://github.com/D-X-Y/AutoDL-Projects/blob/befa6bcb00e0a8fcfba447d2a1348202759f58c9/lib/models/cell_searchs/search_cells.py#L51
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         arch_parameters = torch.unsqueeze(edge.data.alpha, dim=0)
-        # todo reset alphas
-        if tau is False:
-            arch_parameters = torch.softmax(arch_parameters[0], -1)
-            edge.data.set("sampled_arch_weight", torch.tensor([1. if i == torch.max(arch_parameters) else 0.
-                                                               for i in arch_parameters]), shared=True)
-            edge.data.set("argmax", torch.argmax(arch_parameters[0]), shared=True)
-        else:
-            while True:
-                gumbels = -torch.empty_like(arch_parameters).exponential_().log()
-                gumbels = gumbels.to(device)
-                tau = tau.to(device)
-                arch_parameters = arch_parameters.to(device)
-                logits = (arch_parameters.log_softmax(dim=1) + gumbels) / tau
-                probs = torch.nn.functional.softmax(logits, dim=1)
-                index = probs.max(-1, keepdim=True)[1]
-                one_h = torch.zeros_like(logits).scatter_(-1, index, 1.0)
-                hardwts = one_h - probs.detach() + probs
-                if (
-                    (torch.isinf(gumbels).any())
-                    or (torch.isinf(probs).any())
-                    or (torch.isnan(probs).any())
-                ):
-                    continue
-                else:
-                    break
 
-            weights = hardwts[0]
-            argmaxs = index[0].item()
+        while True:
+            gumbels = -torch.empty_like(arch_parameters).exponential_().log()
+            gumbels = gumbels.to(device)
+            tau = tau.to(device)
+            arch_parameters = arch_parameters.to(device)
+            logits = (arch_parameters.log_softmax(dim=1) + gumbels) / tau
+            probs = torch.nn.functional.softmax(logits, dim=1)
+            index = probs.max(-1, keepdim=True)[1]
+            one_h = torch.zeros_like(logits).scatter_(-1, index, 1.0)
+            hardwts = one_h - probs.detach() + probs
+            if (
+                (torch.isinf(gumbels).any())
+                or (torch.isinf(probs).any())
+                or (torch.isnan(probs).any())
+            ):
+                continue
+            else:
+                break
 
-            edge.data.set("sampled_arch_weight", weights, shared=True)
-            edge.data.set("argmax", argmaxs, shared=True)
+        weights = hardwts[0]
+        argmaxs = index[0].item()
+
+        edge.data.set("sampled_arch_weight", weights, shared=True)
+        edge.data.set("argmax", argmaxs, shared=True)
 
     @staticmethod
     def remove_sampled_alphas(edge):
         if edge.data.has("sampled_arch_weight"):
             edge.data.remove("sampled_arch_weight")
 
-    def step(self, data_train, data_val, best_model_loss, epoch):
-        best_model_loss, arch_weights = best_model_loss
-
-        self.graph.update_edges(
-            update_func=lambda edge: self.reset_alphas(edge, arch_weights),
-            scope=self.scope,
-            private_edge_data=False,
-        )
-
-        self.architectural_weights = torch.nn.ParameterList()
-        for alpha in self.graph.get_all_edge_data("alpha"):
-            self.architectural_weights.append(alpha)
-
-        self.arch_optimizer = self.arch_optimizer_func(
-            self.architectural_weights.parameters(),
-            lr=self.config.search.arch_learning_rate,
-            betas=(0.5, 0.999),
-            weight_decay=self.config.search.arch_weight_decay * 0,
-        )
-
-        self.min_optimizer = self.min_optimizer_func(
-            self.architectural_weights.parameters(),
-            lr=self.config.search.arch_learning_rate,
-            betas=(0.9, 0.999),
-            weight_decay=self.config.search.arch_weight_decay * 0,
-        )
-
+    def step(self, data_train, data_val):
         input_train, target_train = data_train
         input_val, target_val = data_val
 
         # sample alphas and set to edges
-        c = 0
-        while True:
-            # if c < 100:
-            if c > 1.5 * (epoch+1):
-                # if c % 5 == 0:
-                #     logger.info(f"arch weights: {arch_weights}")
-                # logger.info(f"reset arch weights")
-                self.graph.update_edges(
-                    update_func=lambda edge: self.reset_alphas(edge, arch_weights),
-                    scope=self.scope,
-                    private_edge_data=False,
-                )
-
-                self.architectural_weights = torch.nn.ParameterList()
-                for alpha in self.graph.get_all_edge_data("alpha"):
-                    self.architectural_weights.append(alpha)
-
-                self.arch_optimizer = self.arch_optimizer_func(
-                    self.architectural_weights.parameters(),
-                    lr=self.config.search.arch_learning_rate,
-                    betas=(0.5, 0.999),
-                    weight_decay=self.config.search.arch_weight_decay * 0,
-                )
-
-                self.min_optimizer = self.min_optimizer_func(
-                    self.architectural_weights.parameters(),
-                    lr=self.config.search.arch_learning_rate,
-                    betas=(0.9, 0.999),
-                    weight_decay=self.config.search.arch_weight_decay * 0,
-                )
-                # logger.info(arch_weights)
-                # logger.info(list(self.architectural_weights.parameters()))
-
-                self.graph.update_edges(
-                    update_func=lambda edge: self.sample_alphas(edge, False),
-                    scope=self.scope,
-                    private_edge_data=False,
-                )
-
-                # todo add no grad
-                with torch.no_grad():
-                    logits_val = self.graph(input_val)
-                    val_loss = self.loss(logits_val, target_val)
-
-                break
-            else:
-                self.graph.update_edges(
-                    update_func=lambda edge: self.sample_alphas(edge, torch.tensor([float(3)]) * (epoch + 1)),
-                    scope=self.scope,
-                    private_edge_data=False,
-                )
-
-                # Update architecture weights
-                self.arch_optimizer.zero_grad()
-                logits_val = self.graph(input_val)
-                val_loss = self.loss(logits_val, target_val)
-                if c % 100 == 99:
-                    logger.info(f"val_loss, tau_curr: {val_loss}, {torch.tensor([float(3)]) * (epoch + 1)}")
-                val_loss.backward()
-
-                if self.grad_clip:
-                    torch.nn.utils.clip_grad_norm_(
-                        self.architectural_weights.parameters(), 5
-                    )
-                self.arch_optimizer.step()
-
-                self.graph.update_edges(
-                    update_func=lambda edge: self.sample_alphas(edge, False),
-                    scope=self.scope,
-                    private_edge_data=False,
-                )
-
-                with torch.no_grad():
-                    logits_val = self.graph(input_val)
-                    val_loss = self.loss(logits_val, target_val)
-
-                if val_loss < best_model_loss * 1.2:
-                    break
-                c += 1
-
-        # Update op weights
-        # while True:
         self.graph.update_edges(
-            update_func=lambda edge: self.sample_alphas(edge, False),
+            update_func=lambda edge: self.sample_alphas(edge, self.tau_curr),
             scope=self.scope,
             private_edge_data=False,
         )
 
+        # Update architecture weights
+        self.arch_optimizer.zero_grad()
+        logits_val = self.graph(input_val)
+        val_loss = self.loss(logits_val, target_val)
+        val_loss.backward()
+        if self.grad_clip:
+            torch.nn.utils.clip_grad_norm_(
+                self.architectural_weights.parameters(), self.grad_clip
+            )
+        self.arch_optimizer.step()
+
+        # has to be done again, cause val_loss.backward() frees the gradient from sampled alphas
+        # TODO: this is not how it is intended because the samples are now different. Another
+        # option would be to set val_loss.backward(retain_graph=True) but that requires more memory.
+        self.graph.update_edges(
+            update_func=lambda edge: self.sample_alphas(edge, self.tau_curr),
+            scope=self.scope,
+            private_edge_data=False,
+        )
+
+        # Update op weights
         self.op_optimizer.zero_grad()
         logits_train = self.graph(input_train)
         train_loss = self.loss(logits_train, target_train)
-
-        if val_loss < best_model_loss * 0.9 and train_loss < best_model_loss * 0.9:
-            arch_weights = [i.detach() for i in self.architectural_weights.parameters()]
-            logger.info(f"set best arch: {val_loss}, {train_loss}")
-            best_model_loss = val_loss
-
         train_loss.backward()
         if self.grad_clip:
             torch.nn.utils.clip_grad_norm_(self.graph.parameters(), self.grad_clip)
-        # if val_loss < best_model_loss and val_loss < 2.4:
-        # if val_loss < best_model_loss * 1.25 and train_loss < best_model_loss * 1.25:
-            self.op_optimizer.step()
-
-        # if train_loss < 2.4 and val_loss < best_model_loss:
-        #     break
+        self.op_optimizer.step()
 
         # in order to properly unparse remove the alphas again
         self.graph.update_edges(
@@ -293,14 +158,8 @@ class GDASOptimizer(DARTSOptimizer):
             scope=self.scope,
             private_edge_data=False,
         )
-        # else:
-        #     logits_train, train_loss = logits_val, val_loss
 
-        return logits_train, logits_val, train_loss, val_loss, (best_model_loss, arch_weights)
-
-@staticmethod
-def add_alphas(edge):
-    super().add_alphas(edge)
+        return logits_train, logits_val, train_loss, val_loss
 
 
 class GDASMixedOp(MixedOp):

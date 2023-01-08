@@ -79,41 +79,33 @@ class DrNASOptimizer(DARTSOptimizer):
             ).to(self.device)
         )
 
-    def step(self, data_train, data_val, best_model_loss, epoch):
+    def step(self, data_train, data_val):
         input_train, target_train = data_train
         input_val, target_val = data_val
 
-        c = 0
-        while True:
-            # sample weights (alphas) from the dirichlet distribution (parameterized by beta) and set to edges
-            self.graph.update_edges(
-                update_func=lambda edge: self.sample_alphas(edge),
-                scope=self.scope,
-                private_edge_data=False,
+        # sample weights (alphas) from the dirichlet distribution (parameterized by beta) and set to edges
+        self.graph.update_edges(
+            update_func=lambda edge: self.sample_alphas(edge),
+            scope=self.scope,
+            private_edge_data=False,
+        )
+
+        # Update architecture weights
+        self.arch_optimizer.zero_grad()
+        logits_val = self.graph(input_val)
+        val_loss = self.loss(logits_val, target_val)
+
+        if self.reg_type == "kl":
+            val_loss += self._get_kl_reg()
+
+        val_loss.backward()
+
+        if self.grad_clip:
+            torch.nn.utils.clip_grad_norm_(
+                self.architectural_weights.parameters(), self.grad_clip
             )
+        self.arch_optimizer.step()
 
-            # Update architecture weights
-            self.min_optimizer.zero_grad()
-            logits_val = self.graph(input_val)
-            val_loss = self.loss(logits_val, target_val)
-
-            if self.reg_type == "kl":
-                val_loss += self._get_kl_reg()
-            val_loss.backward()
-
-            if self.grad_clip is not None:
-                torch.nn.utils.clip_grad_norm_(
-                    self.architectural_weights.parameters(), self.grad_clip
-                )
-
-            self.min_optimizer.step()
-            if val_loss < 2.4 and val_loss < best_model_loss or c > 100:
-                break
-            c += 1
-
-        # Update op weights
-        # c = 0
-        # while True:
         # has to be done again, cause val_loss.backward() frees the gradient from sampled alphas
         # TODO: this is not how it is intended because the samples are now different. Another
         # option would be to set val_loss.backward(retain_graph=True) but that requires more memory.
@@ -123,6 +115,7 @@ class DrNASOptimizer(DARTSOptimizer):
             private_edge_data=False,
         )
 
+        # Update op weights
         self.op_optimizer.zero_grad()
         logits_train = self.graph(input_train)
         train_loss = self.loss(logits_train, target_train)
@@ -130,16 +123,15 @@ class DrNASOptimizer(DARTSOptimizer):
         if self.grad_clip:
             torch.nn.utils.clip_grad_norm_(self.graph.parameters(), self.grad_clip)
         self.op_optimizer.step()
+
         # in order to properly unparse remove the alphas again
         self.graph.update_edges(
             update_func=self.remove_sampled_alphas,
             scope=self.scope,
             private_edge_data=False,
         )
-        # if train_loss < 2.4:
-        #     break
 
-        return logits_train, logits_val, train_loss, val_loss, best_model_loss
+        return logits_train, logits_val, train_loss, val_loss
 
     def _get_kl_reg(self):
         cons = (
@@ -150,7 +142,7 @@ class DrNASOptimizer(DARTSOptimizer):
         kl_reg = self.reg_scale * torch.sum(kl_divergence(q, p))
         return kl_reg
 
-    def get_final_architecture(self, eval=False):
+    def get_final_architecture(self):
         logger.info(
             "Arch weights before discretization: {}".format(
                 [a for a in self.architectural_weights]
@@ -163,13 +155,7 @@ class DrNASOptimizer(DARTSOptimizer):
             if edge.data.has("alpha"):
                 primitives = edge.data.op.get_embedded_ops()
                 alphas = edge.data.alpha.detach().cpu()
-                op = primitives[np.argmax(alphas)]
-                if hasattr(op, 'fix_lr_param') and eval:
-                    op.fix_lr_param()
-                    logger.info(f"{op.name}, {op.beta}")
-                    with open(f'{self.config.save_arch_weights_path}/{op.name}.npy', 'wb') as f:
-                        np.save(f, op.beta.detach().cpu().numpy())
-                edge.data.set("op", op)
+                edge.data.set("op", primitives[np.argmax(alphas)])
 
         graph.update_edges(discretize_ops, scope=self.scope, private_edge_data=True)
         graph.prepare_evaluation()

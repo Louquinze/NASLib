@@ -1,5 +1,3 @@
-import time
-
 import numpy as np
 import torch
 import logging
@@ -29,7 +27,6 @@ class DARTSOptimizer(MetaOptimizer):
         len_primitives = len(edge.data.op)
         alpha = torch.nn.Parameter(
             1e-3 * torch.randn(size=[len_primitives], requires_grad=True)
-            # torch.ones(len_primitives) * 1 / len_primitives
         )
         edge.data.set("alpha", alpha, shared=True)
 
@@ -43,11 +40,11 @@ class DARTSOptimizer(MetaOptimizer):
         edge.data.set("op", DARTSMixedOp(primitives))
 
     def __init__(
-            self,
-            config,
-            op_optimizer=torch.optim.SGD,
-            arch_optimizer=torch.optim.Adam,
-            loss_criteria=torch.nn.CrossEntropyLoss(),
+        self,
+        config,
+        op_optimizer=torch.optim.SGD,
+        arch_optimizer=torch.optim.Adam,
+        loss_criteria=torch.nn.CrossEntropyLoss(),
     ):
         """
         Initialize a new instance.
@@ -60,12 +57,7 @@ class DARTSOptimizer(MetaOptimizer):
         self.config = config
         self.op_optimizer = op_optimizer
         self.arch_optimizer = arch_optimizer
-        self.min_optimizer = arch_optimizer
-        self.arch_optimizer_func = self.arch_optimizer
-        self.min_optimizer_func = self.arch_optimizer
-        self.op_optimizer_func = self.op_optimizer
         self.loss = loss_criteria
-        self.min_loss = torch.nn.L1Loss()
         self.grad_clip = self.config.search.grad_clip
 
         self.architectural_weights = torch.nn.ParameterList()
@@ -99,25 +91,18 @@ class DARTSOptimizer(MetaOptimizer):
             self.architectural_weights.append(alpha)
 
         graph.parse()
-        # logger.info("Parsed graph:\n" + graph.modules_str())
+        #logger.info("Parsed graph:\n" + graph.modules_str())
 
         # Init optimizers
         if self.arch_optimizer is not None:
-            self.arch_optimizer = self.arch_optimizer_func(
+            self.arch_optimizer = self.arch_optimizer(
                 self.architectural_weights.parameters(),
                 lr=self.config.search.arch_learning_rate,
                 betas=(0.5, 0.999),
-                weight_decay=self.config.search.arch_weight_decay * 0,
+                weight_decay=self.config.search.arch_weight_decay,
             )
 
-            self.min_optimizer = self.min_optimizer_func(
-                self.architectural_weights.parameters(),
-                lr=self.config.search.arch_learning_rate,
-                betas=(0.9, 0.999),
-                weight_decay=self.config.search.arch_weight_decay * 0,
-            )
-
-        self.op_optimizer = self.op_optimizer_func(
+        self.op_optimizer = self.op_optimizer(
             graph.parameters(),
             lr=self.config.search.learning_rate,
             momentum=self.config.search.momentum,
@@ -148,8 +133,6 @@ class DARTSOptimizer(MetaOptimizer):
         """
         Just log the architecture weights.
         """
-        self.architectural_weights = self.architectural_weights[:6]
-
         alpha_str = [
             ", ".join(["{:+.06f}".format(x) for x in a])
             + ", {}".format(np.argmax(a.detach().cpu().numpy()))
@@ -162,9 +145,7 @@ class DARTSOptimizer(MetaOptimizer):
         )
         super().new_epoch(epoch)
 
-    def step(self, data_train, data_val, best_model_loss, epoch):
-        loss_lst = []
-        # flag = False
+    def step(self, data_train, data_val):
         input_train, target_train = data_train
         input_val, target_val = data_val
 
@@ -174,35 +155,25 @@ class DARTSOptimizer(MetaOptimizer):
             raise NotImplementedError()
         else:
             # Update architecture weights
-
-            # while True:
+            self.arch_optimizer.zero_grad()
             logits_val = self.graph(input_val)
             val_loss = self.loss(logits_val, target_val)
-            self.min_optimizer.zero_grad()
             val_loss.backward()
 
-            if self.grad_clip is not None:
-                torch.nn.utils.clip_grad_norm_(
-                    self.architectural_weights.parameters(), self.grad_clip
-                )
-
-            self.min_optimizer.step()
+            self.arch_optimizer.step()
 
             # Update op weights
-            # c = 0
-            # while True:
             self.op_optimizer.zero_grad()
             logits_train = self.graph(input_train)
             train_loss = self.loss(logits_train, target_train)
-            if val_loss < 2.6:
-                train_loss.backward()
-                if self.grad_clip:
-                    torch.nn.utils.clip_grad_norm_(self.graph.parameters(), self.grad_clip)
-                self.op_optimizer.step()
+            train_loss.backward()
+            if self.grad_clip:
+                torch.nn.utils.clip_grad_norm_(self.graph.parameters(), self.grad_clip)
+            self.op_optimizer.step()
 
-        return logits_train, logits_val, train_loss, val_loss, best_model_loss
+        return logits_train, logits_val, train_loss, val_loss
 
-    def get_final_architecture(self, eval=False):
+    def get_final_architecture(self):
         logger.info(
             "Arch weights before discretization: {}".format(
                 [a for a in self.architectural_weights]
@@ -240,16 +211,16 @@ class DARTSOptimizer(MetaOptimizer):
             return None
 
     def _step(
-            self,
-            model,
-            criterion,
-            input_train,
-            target_train,
-            input_valid,
-            target_valid,
-            eta,
-            network_optimizer,
-            unrolled,
+        self,
+        model,
+        criterion,
+        input_train,
+        target_train,
+        input_valid,
+        target_valid,
+        eta,
+        network_optimizer,
+        unrolled,
     ):
         self.optimizer.zero_grad()
         if unrolled:
@@ -266,10 +237,10 @@ class DARTSOptimizer(MetaOptimizer):
         else:
             self._backward_step(model, criterion, input_valid, target_valid)
 
-        # if self.grad_clip is not None:
-        #     torch.nn.utils.clip_grad_norm_(
-        #         self.architectural_weights.parameters(), self.grad_clip
-        #     )
+        if self.grad_clip is not None:
+            torch.nn.utils.clip_grad_norm_(
+                self.architectural_weights.parameters(), self.grad_clip
+            )
         self.optimizer.step()
 
     def _backward_step(self, model, criterion, input_valid, target_valid):
@@ -278,15 +249,15 @@ class DARTSOptimizer(MetaOptimizer):
         loss.backward()
 
     def _backward_step_unrolled(
-            self,
-            model,
-            criterion,
-            input_train,
-            target_train,
-            input_valid,
-            target_valid,
-            eta,
-            network_optimizer,
+        self,
+        model,
+        criterion,
+        input_train,
+        target_train,
+        input_valid,
+        target_valid,
+        eta,
+        network_optimizer,
     ):
         unrolled_model = self._compute_unrolled_model(
             model, criterion, input_train, target_train, eta, network_optimizer
@@ -322,7 +293,7 @@ class DARTSOptimizer(MetaOptimizer):
                 v.grad.data.copy_(g.data)
 
     def _compute_unrolled_model(
-            self, model, criterion, input, target, eta, network_optimizer
+        self, model, criterion, input, target, eta, network_optimizer
     ):
         loss = self._loss(model=model, criterion=criterion, input=input, target=target)
         theta = _concat(model.parameters()).data
@@ -334,8 +305,8 @@ class DARTSOptimizer(MetaOptimizer):
         except:
             moment = torch.zeros_like(theta)
         dtheta = (
-                _concat(torch.autograd.grad(loss, model.parameters())).data
-                + self.network_weight_decay * theta
+            _concat(torch.autograd.grad(loss, model.parameters())).data
+            + self.network_weight_decay * theta
         )
 
         unrolled_model = self._construct_model_from_theta(
@@ -350,7 +321,7 @@ class DARTSOptimizer(MetaOptimizer):
         params, offset = {}, 0
         for k, v in model.named_parameters():
             v_length = np.prod(v.size())
-            params[k] = theta[offset: offset + v_length].view(v.size())
+            params[k] = theta[offset : offset + v_length].view(v.size())
             offset += v_length
 
         assert offset == len(theta)

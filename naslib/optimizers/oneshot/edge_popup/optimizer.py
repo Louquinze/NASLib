@@ -77,7 +77,9 @@ class EdgePopUpOptimizer(MetaOptimizer):
     ):
         """
         Initialize a new instance.
+
         Args:
+
         """
         super(EdgePopUpOptimizer, self).__init__()
 
@@ -126,7 +128,7 @@ class EdgePopUpOptimizer(MetaOptimizer):
             self.arch_optimizer = self.arch_optimizer(
                 self.architectural_weights.parameters(),
                 lr=self.config.search.arch_learning_rate,
-                betas=(0.9, 0.999),
+                betas=(0.5, 0.999),
                 weight_decay=self.config.search.arch_weight_decay,
             )
 
@@ -267,10 +269,10 @@ class EdgePopUpOptimizer(MetaOptimizer):
         else:
             self._backward_step(model, criterion, input_valid, target_valid)
 
-        # if self.grad_clip is not None:
-        #     torch.nn.utils.clip_grad_norm_(
-        #         self.architectural_weights.parameters(), self.grad_clip
-        #     )
+        if self.grad_clip is not None:
+            torch.nn.utils.clip_grad_norm_(
+                self.architectural_weights.parameters(), self.grad_clip
+            )
         self.optimizer.step()
 
     def _backward_step(self, model, criterion, input_valid, target_valid):
@@ -398,7 +400,8 @@ class EdgePopUpMixedOp(MixedOp):
 
     def apply_weights(self, x, weights):
         # subnet = GetSubnet.apply(self.scores.abs(), SPARSITY) #TODO: remove abs()
-        sparsity = 1/len(weights) + 1
+        sparsity = 1/len(weights) + 1e-6
         masked_weights = GetSubnet.apply(weights, sparsity)
         # applying edge_popup to the alphas
         return sum(masked_w * op(x, None) for masked_w, op in zip(masked_weights, self.primitives))
+
