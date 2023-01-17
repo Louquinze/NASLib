@@ -360,6 +360,7 @@ class DARTSMixedOp(MixedOp):
 
     def __init__(self, primitives):
         super().__init__(primitives)
+        self.hook_func_1 = ModifyGrad(float("inf"), "DrNAS_MixOps")
     
     def get_weights(self, edge_data):
         return edge_data.alpha
@@ -367,6 +368,19 @@ class DARTSMixedOp(MixedOp):
     def process_weights(self, weights):
         return torch.softmax(weights, dim=-1)
 
-    def apply_weights(self, x, weights):        
+    def apply_weights(self, x, weights):
+        if x.requires_grad:
+            x.register_hook(self.hook_func_1.modify_grad)
+        if weights.requires_grad:
+            weights.register_hook(self.hook_func_1.modify_grad)
         return sum(w * op(x, None) for w, op in zip(weights, self.primitives))
 
+
+class ModifyGrad:
+    def __init__(self, clamp_value, name):
+        self.name = name
+        self.clamp_value = clamp_value
+
+    def modify_grad(self, grad):
+        modified_grad = torch.nan_to_num(grad, nan=0, posinf=self.clamp_value, neginf=-self.clamp_value)
+        return modified_grad
